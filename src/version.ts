@@ -8,7 +8,7 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 4, PATCH: 1 } as const;
+export const APP_VERSION = { MAJOR: 2, MINOR: 5, PATCH: 0 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.0.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.0.0"
@@ -19,7 +19,16 @@ export const BUILD_DATE = '2026-09-02';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.4.1 — 2026-09-02
+export const RELEASE_NOTES = `V2.5.0 — 2026-09-02
+财务 dashboard 完善（功能小版本）：
+
+· 本月收支结余新增「储蓄率」：本月 (收入−支出)/收入，一眼看清这个月存下多少
+· 本月收支结余新增「环比上月」：与上月净结余对比，▲/▼ 百分比（绿涨红跌），纯派生无存储改动
+· 预算使用新增「日均可用」：当前月剩余天数 + 日均可花费（剩余预算 ÷ 剩余天数），仅查看当月时显示
+· 支出趋势 Top5 分类进度条补「占比 %」：各分类占当月同类币种支出比例
+· 全部为纯派生指标：不新增存储、不改任何写入规则、不动 SCHEMA_VERSION（仍为 2）
+
+V2.4.1 — 2026-09-02
 夜间模式修复（bug fix）：
 
 · 新增「定时」外观模式：按本地时间 19:00–06:59 自动切换深色，跨过日/夜边界即时生效（分钟级刷新），无需依赖系统深色开关

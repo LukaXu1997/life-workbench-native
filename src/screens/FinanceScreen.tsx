@@ -33,7 +33,7 @@ import { Icon, ICONS } from '../icons';
 import { ImportFlowModal } from './ImportFlowModal';
 import { radius, space, pageMargin, cardGap, touchMin } from '../tokens';
 import { budgetStatus } from '../calc';
-import { financeSummary, recomputeAccounts, cardSummary, nextDueDate } from '../calc';
+import { financeSummary, recomputeAccounts, cardSummary, nextDueDate, financeStats } from '../calc';
 import {
   formatMoney,
   convertMinor,
@@ -426,6 +426,15 @@ function OverviewTab({
   const ie = summary.stats.incomeExpense;
   const hasPredicted = summary.predictedLiabilitiesMYR !== summary.liabilitiesMYR;
   const nav = useNotifyNav();
+  // A+B: 本月结余环比上月 + 储蓄率（纯派生，无存储改动）
+  const prevYm = shiftMonth(ym, -1);
+  const prevStats = useMemo(() => financeStats(d.txns, prevYm), [d.txns, prevYm]);
+  // C: 预算「日均可用」所需——本月剩余天数
+  const isCurrentMonth = ym === ymStr();
+  const dayOfMonth = Number(today.slice(8));
+  const [cy, cm] = ym.split('-').map(Number);
+  const daysInMonth = new Date(cy, cm, 0).getDate();
+  const daysLeft = isCurrentMonth ? Math.max(1, daysInMonth - dayOfMonth + 1) : daysInMonth;
   // 引导式空态：没有账户，或「没有任何交易且所有账户余额都为 0」时，
   // 不再显示 -RM 0.00 / RM 0.00 这类让人误读的数字，改为引导用户建账/记账。
   const isEmpty =
@@ -521,6 +530,7 @@ function OverviewTab({
           {shown.map((c, i) => {
             const s = ie[c];
             const net = s.income - s.expense;
+            const prevNet = prevStats.incomeExpense[c].income - prevStats.incomeExpense[c].expense;
             return (
               <View key={c}>
                 {i > 0 ? (
@@ -567,6 +577,32 @@ function OverviewTab({
                     color={net < 0 ? theme.error : theme.onSurface}
                     accessibilityLabel={t('finance.balance') + ' ' + formatMoney(net, c)}
                   />
+                </View>
+
+                {/* A 储蓄率 + B 环比上月（纯派生，无存储改动） */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: space.sm,
+                    marginTop: space.sm,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <M3Text role="labelSmall" color={theme.onSurfaceVariant}>{t('finance.savingsRate')}</M3Text>
+                  <M3Text role="labelSmall" color={theme.onSurface} style={TNUM}>
+                    {s.income > 0 ? `${Math.round((net / s.income) * 100)}%` : '--'}
+                  </M3Text>
+                  {prevNet !== 0 ? (
+                    <>
+                      <M3Text role="labelSmall" color={theme.onSurfaceVariant} style={{ marginLeft: space.md }}>
+                        {t('finance.vsLastMonth')}
+                      </M3Text>
+                      <M3Text role="labelSmall" color={net >= prevNet ? theme.income : theme.error} style={TNUM}>
+                        {net >= prevNet ? '▲' : '▼'} {Math.abs(Math.round((net / prevNet - 1) * 100))}%
+                      </M3Text>
+                    </>
+                  ) : null}
                 </View>
                 {(() => {
                   const rf = summary.stats.recurringIncomeExpense[c];
@@ -737,6 +773,11 @@ function BudgetUsageCard({ d, ym, onGo }: { d: any; ym: string; onGo: (s: FSeg) 
     [d.txns, d.budgets, ym]
   );
   const set = rows.filter((r) => r.hasBudget);
+  // C: 预算「日均可用」——本月剩余天数（仅当前月有意义）
+  const isCurMonth = ym === ymStr();
+  const [bcy, bcm] = ym.split('-').map(Number);
+  const bDim = new Date(bcy, bcm, 0).getDate();
+  const bDaysLeft = isCurMonth ? Math.max(1, bDim - Number(todayStr().slice(8)) + 1) : bDim;
 
   return (
     <Card>
@@ -795,6 +836,22 @@ function BudgetUsageCard({ d, ym, onGo }: { d: any; ym: string; onGo: (s: FSeg) 
                   {formatMoney(Math.abs(r.remain), r.currency)}
                 </M3Text>
               </View>
+              {isCurMonth && r.remain > 0 ? (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: space.sm,
+                    marginTop: space.xs,
+                  }}
+                >
+                  <M3Text role="labelSmall" color={theme.onSurfaceVariant}>{t('finance.remainingDays', { n: bDaysLeft })}</M3Text>
+                  <M3Text role="labelSmall" color={theme.onSurfaceVariant} style={TNUM} numberOfLines={1}>
+                    {t('finance.avgDailyAvailable')} {formatMoney(Math.round(r.remain / bDaysLeft), r.currency)}
+                  </M3Text>
+                </View>
+              ) : null}
             </View>
           );
         })
@@ -1087,6 +1144,7 @@ function TrendSection({ d, ym }: { d: any; ym: string }) {
     return { entries: es, max: mx, months: ms, maxM: Math.max(...ms.map((m) => m.expense), 1) };
   }, [d.txns, ym, cur]);
 
+  const total = entries.reduce((s, e) => s + e[1], 0);
   return (
     <Card>
       <CardTitle title={t('financeExtra.trendTitle')} />
@@ -1155,6 +1213,9 @@ function TrendSection({ d, ym }: { d: any; ym: string }) {
               </M3Text>
               <M3Text role="labelLarge" color={theme.onSurfaceVariant} style={TNUM} numberOfLines={1}>
                 {formatMoney(amt, cur)}
+              </M3Text>
+              <M3Text role="labelMedium" color={theme.onSurfaceVariant} style={TNUM}>
+                {total > 0 ? `${Math.round((amt / total) * 100)}%` : '0%'}
               </M3Text>
             </View>
             <AnimatedProgress value={amt / max} color={theme.primary} trackColor={theme.surfaceContainerHigh} height={6} />
