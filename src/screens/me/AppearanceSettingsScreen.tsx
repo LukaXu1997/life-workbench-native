@@ -20,6 +20,7 @@ export default function AppearanceSettingsScreen({ navigation }: { navigation: a
           <Segmented
             segments={[
               { key: 'system', label: t('settings.appearanceSystem') },
+              { key: 'auto', label: t('settings.appearanceAuto') },
               { key: 'light', label: t('settings.appearanceLight') },
               { key: 'dark', label: t('settings.appearanceDark') },
             ]}
@@ -31,9 +32,11 @@ export default function AppearanceSettingsScreen({ navigation }: { navigation: a
               mode:
                 mode === 'system'
                   ? t('settings.modeSystem')
-                  : mode === 'dark'
-                    ? t('settings.modeDark')
-                    : t('settings.modeLight'),
+                  : mode === 'auto'
+                    ? t('settings.modeAuto')
+                    : mode === 'dark'
+                      ? t('settings.modeDark')
+                      : t('settings.modeLight'),
             })}
           </M3Text>
         </View>

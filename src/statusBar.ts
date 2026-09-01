@@ -2,7 +2,7 @@
 // Kept RN-free so it can be unit-tested under plain Node AND imported by
 // theme-context.tsx / App.tsx without pulling in react-native in tests.
 
-export type ThemeMode = 'light' | 'dark' | 'system';
+export type ThemeMode = 'light' | 'dark' | 'system' | 'auto';
 
 /** Resolve whether the active theme is dark from the app mode + system setting. */
 export function isDarkFromMode(mode: ThemeMode, systemDark: boolean): boolean {

@@ -231,7 +231,7 @@ export const store = {
   getInbox: () => getJSON<InboxItem[]>(KEYS.inbox, []),
   setInbox: (v: InboxItem[]) => setJSON(KEYS.inbox, v),
 
-  getTheme: () => getJSON<string>(KEYS.theme, 'system'),
+  getTheme: () => getJSON<string>(KEYS.theme, 'auto'),
   setTheme: (v: string) => setJSON(KEYS.theme, v),
   getFxRate: async () => {
     const r = await getJSON<number>(KEYS.fxRate, FX_DEFAULT);

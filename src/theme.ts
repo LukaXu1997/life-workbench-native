@@ -1,6 +1,16 @@
 import { Appearance } from 'react-native';
 
-export type ThemeMode = 'light' | 'dark' | 'system';
+export type ThemeMode = 'light' | 'dark' | 'system' | 'auto';
+
+/**
+ * Time-based night detection for the 'auto' theme mode.
+ * Night window: 19:00 (inclusive) through 06:59 (i.e. before 07:00).
+ * Uses local device time so it works without location permission.
+ */
+export function isNightTime(now: Date = new Date()): boolean {
+  const h = now.getHours();
+  return h >= 19 || h < 7;
+}
 
 // Material 3 semantic color roles + legacy fields kept for backward compatibility
 // (screens still reference accent*/danger/green/amber/r1-r4 during the phased migration).

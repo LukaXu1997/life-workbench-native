@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useColorScheme, Appearance } from 'react-native';
-import { resolveTheme, ThemeMode, Theme } from './theme';
+import { resolveTheme, ThemeMode, Theme, isNightTime } from './theme';
 import { isDarkFromMode } from './statusBar';
 import { store, onChange } from './store';
 
@@ -42,14 +42,22 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return () => sub.remove();
   }, []);
 
-  // User's chosen mode: 'system' | 'light' | 'dark'
+  // Minute tick — drives the 'auto' (time-based) mode so the theme flips at the
+  // day/night boundary even if the app stays foregrounded.
+  const [, setMinute] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setMinute((m) => (m + 1) % 1440), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // User's chosen mode: 'system' | 'light' | 'dark' | 'auto'
   const [mode, setModeState] = useState<ThemeMode>('system');
 
   // Load persisted preference
   useEffect(() => {
-    store.getTheme().then((m) => setModeState((m as ThemeMode) || 'system'));
+    store.getTheme().then((m) => setModeState((m as ThemeMode) || 'auto'));
     const unsub = onChange(() => {
-      store.getTheme().then((m) => setModeState((m as ThemeMode) || 'system'));
+      store.getTheme().then((m) => setModeState((m as ThemeMode) || 'auto'));
     });
     return () => { unsub(); };
   }, []);
@@ -60,7 +68,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Final resolution
-  const isDark = mode === 'dark' || (mode === 'system' && systemDark);
+  //  · 'dark'                         → always dark
+  //  · 'system'                       → follow OS dark setting
+  //  · 'auto'                         → dark between 19:00–06:59 (local time)
+  //  · 'light'                        → always light
+  const autoDark = mode === 'auto' && isNightTime();
+  const isDark = mode === 'dark' || (mode === 'system' && systemDark) || autoDark;
   const effectiveMode = isDark ? 'dark' : 'light';
   const theme = resolveTheme(effectiveMode);
 

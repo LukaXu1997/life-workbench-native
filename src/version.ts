@@ -8,18 +8,26 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 4, PATCH: 0 } as const;
+export const APP_VERSION = { MAJOR: 2, MINOR: 4, PATCH: 1 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.0.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.0.0"
 export const VERSION_CODE = APP_VERSION.MAJOR * 10000 + APP_VERSION.MINOR * 100 + APP_VERSION.PATCH; // 20000
 
 // Set on each release.
-export const BUILD_DATE = '2026-09-01';
+export const BUILD_DATE = '2026-09-02';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.4.0 — 2026-09-01
+export const RELEASE_NOTES = `V2.4.1 — 2026-09-02
+夜间模式修复（bug fix）：
+
+· 新增「定时」外观模式：按本地时间 19:00–06:59 自动切换深色，跨过日/夜边界即时生效（分钟级刷新），无需依赖系统深色开关
+· 默认外观改为「定时」：新装/未手动设置用户开箱即晚上自动进入夜间模式（此前「跟随系统」仅跟随系统深色，系统未开深色时夜晚不生效）
+· 修正「选 light 反而是夜间」类反相问题：源码中 light→浅色、dark→深色、system→跟随系统 的映射本身正确，问题源于旧构建；本次重新构建交付，确保映射正确
+· 外观设置与「我的」页当前模式文案同步支持「定时」
+
+V2.4.0 — 2026-09-01
 生物识别进入 App + 防夜间闪白隐私遮罩（功能升级）：
 
 · 新增「进入 App 时验证」：默认关闭，由用户主动开启；开启与关闭前都必须先进行一次生物识别验证，验证成功才保存，杜绝误锁与跳过

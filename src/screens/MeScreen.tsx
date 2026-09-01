@@ -82,7 +82,13 @@ export default function MeScreen({ navigation }: any) {
   }, []);
 
   const modeLabel =
-    mode === 'system' ? t('settings.modeSystem') : mode === 'dark' ? t('settings.modeDark') : t('settings.modeLight');
+    mode === 'system'
+      ? t('settings.modeSystem')
+      : mode === 'auto'
+        ? t('settings.modeAuto')
+        : mode === 'dark'
+          ? t('settings.modeDark')
+          : t('settings.modeLight');
   const langLabel =
     lang === 'system' ? t('settings.langSystemVal') : lang === 'zh' ? t('settings.langZhVal') : t('settings.langEnVal');
 
