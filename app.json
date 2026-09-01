@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "生活工作台",
+    "slug": "life-workbench",
+  "version": "2.4.0",
+  "orientation": "portrait",
+  "scheme": "lifeworkbench",
+  "userInterfaceStyle": "automatic",
+  "newArchEnabled": false,
+  "icon": "./assets/icon.png",
+  "android": {
+    "package": "com.luka.lifeworkbench",
+    "versionCode": 20400,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon-foreground.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "permissions": [],
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ],
+      "softwareKeyboardLayoutMode": "resize"
+    },
+    "ios": {
+      "bundleIdentifier": "com.luka.lifeworkbench",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "用于设置个人头像",
+        "NSFaceIDUsageDescription": "用于开启应用锁，验证面容以打开应用"
+      }
+    },
+    "plugins": [
+      "expo-asset",
+      "expo-font",
+      "expo-localization",
+      "expo-image-picker"
+    ],
+  }
+}

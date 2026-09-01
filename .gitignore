@@ -1,0 +1,38 @@
+# OS / editor
+.DS_Store
+*.log
+npm-debug.log*
+.env*
+
+# Node / JS
+node_modules/
+
+# Expo
+.expo/
+.expo-shared/
+dist/
+web-build/
+
+# Android build artifacts
+android/.gradle/
+android/build/
+android/app/build/
+android/app/.cxx/
+.gradle/
+
+# Keys / secrets (NEVER commit)
+*.keystore
+*.jks
+
+# Test / verification artifacts
+acceptance-shots/
+screenshots/
+.verify_shots/
+.tmptest/
+
+# WorkBuddy session data
+.workbuddy/
+
+# Misc
+*.tmp
+*.swp

@@ -1,0 +1,10 @@
+<resources>
+  <string name="app_name">生活工作台</string>
+  <string name="tile_quick_add">快速记账</string>
+  <string name="shortcut_expense">记支出</string>
+  <string name="shortcut_expense_long">快速记一笔支出</string>
+  <string name="shortcut_income">记收入</string>
+  <string name="shortcut_income_long">快速记一笔收入</string>
+  <string name="shortcut_repayment">记录还款</string>
+  <string name="shortcut_repayment_long">记录信用卡还款</string>
+</resources>

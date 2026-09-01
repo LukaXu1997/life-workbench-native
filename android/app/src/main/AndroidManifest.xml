@@ -1,0 +1,52 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
+  <uses-permission android:name="android.permission.INTERNET"/>
+  <uses-permission android:name="android.permission.VIBRATE"/>
+  <!-- Gallery image picker: scoped READ_MEDIA_IMAGES covers Android 13+. Pixel uses the system photo picker (no permission needed). -->
+  <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+  <!-- Imports use the system document picker; broad legacy storage access is unnecessary. -->
+  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove"/>
+  <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove"/>
+  <!-- App Lock (Face / Fingerprint) via expo-local-authentication. -->
+  <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+  <queries>
+    <intent>
+      <action android:name="android.intent.action.VIEW"/>
+      <category android:name="android.intent.category.BROWSABLE"/>
+      <data android:scheme="https"/>
+    </intent>
+  </queries>
+  <application android:name=".MainApplication" android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round" android:allowBackup="false" android:fullBackupContent="false" android:theme="@style/AppTheme" android:supportsRtl="true">
+    <meta-data android:name="expo.modules.updates.ENABLED" android:value="false"/>
+    <meta-data android:name="expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH" android:value="ALWAYS"/>
+    <meta-data android:name="expo.modules.updates.EXPO_UPDATES_LAUNCH_WAIT_MS" android:value="0"/>
+    <service android:name=".quickadd.QuickAddTileService" android:exported="true" android:icon="@drawable/ic_tile_quick_add" android:label="@string/tile_quick_add" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+      <intent-filter>
+        <action android:name="android.service.quicksettings.action.TOGGLE"/>
+      </intent-filter>
+    </service>
+    <service android:name=".notify.NotifyListener" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" android:exported="false">
+      <intent-filter>
+        <action android:name="android.service.notification.NotificationListenerService"/>
+      </intent-filter>
+    </service>
+    <activity android:name=".MainActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode|locale|layoutDirection" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize" android:theme="@style/Theme.App.SplashScreen" android:exported="true" android:screenOrientation="portrait">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <category android:name="android.intent.category.BROWSABLE"/>
+        <data android:scheme="lifeworkbench"/>
+        <data android:scheme="com.luka.lifeworkbench"/>
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.SEND"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <data android:mimeType="text/plain"/>
+      </intent-filter>
+      <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts"/>
+    </activity>
+  </application>
+</manifest>

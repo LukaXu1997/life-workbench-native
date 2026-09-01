@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Static app shortcuts: each opens the app via a deep link into QuickAddScreen. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+  <shortcut
+    android:shortcutId="quick_expense"
+    android:enabled="true"
+    android:icon="@drawable/ic_shortcut_expense"
+    android:shortcutShortLabel="@string/shortcut_expense"
+    android:shortcutLongLabel="@string/shortcut_expense_long">
+    <intent
+      android:action="android.intent.action.VIEW"
+      android:data="lifeworkbench://quick-add?type=expense" />
+  </shortcut>
+
+  <shortcut
+    android:shortcutId="quick_income"
+    android:enabled="true"
+    android:icon="@drawable/ic_shortcut_income"
+    android:shortcutShortLabel="@string/shortcut_income"
+    android:shortcutLongLabel="@string/shortcut_income_long">
+    <intent
+      android:action="android.intent.action.VIEW"
+      android:data="lifeworkbench://quick-add?type=income" />
+  </shortcut>
+
+  <shortcut
+    android:shortcutId="quick_repayment"
+    android:enabled="true"
+    android:icon="@drawable/ic_shortcut_repayment"
+    android:shortcutShortLabel="@string/shortcut_repayment"
+    android:shortcutLongLabel="@string/shortcut_repayment_long">
+    <intent
+      android:action="android.intent.action.VIEW"
+      android:data="lifeworkbench://quick-add?type=repayment" />
+  </shortcut>
+</shortcuts>
