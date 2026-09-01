@@ -8,18 +8,27 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 5, PATCH: 0 } as const;
+export const APP_VERSION = { MAJOR: 2, MINOR: 6, PATCH: 0 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.0.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.0.0"
 export const VERSION_CODE = APP_VERSION.MAJOR * 10000 + APP_VERSION.MINOR * 100 + APP_VERSION.PATCH; // 20000
 
 // Set on each release.
-export const BUILD_DATE = '2026-09-02';
+export const BUILD_DATE = '2026-08-30';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.5.0 — 2026-09-02
+export const RELEASE_NOTES = `V2.6.0 — 2026-08-30
+计划页新增「日历 / 月视图」（功能小版本）：
+
+· 计划页新增第 5 档「日历」：以月视图集中浏览当月所有日程，一眼看清哪些天有安排
+· 月历以周日为起始（日一二三四五六），有任务的日期下方显示主色圆点；今天高亮主色数字，选中日以主色容器底色标示
+· 支持上 / 下月切换（chevron 按钮），跨月浏览历史与未来安排
+· 点选任意日期，下方列出当日任务并复用现有 TaskRow（含勾选 / 删除 / 撤销），空日显示空状态
+· 纯展示层：直接复用 Task[]，不新增存储、不改写入规则、不动 SCHEMA_VERSION（仍为 2）
+
+V2.5.0 — 2026-09-02
 财务 dashboard 完善（功能小版本）：
 
 · 本月收支结余新增「储蓄率」：本月 (收入−支出)/收入，一眼看清这个月存下多少

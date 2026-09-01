@@ -1,10 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   FlatList,
   View,
   TouchableOpacity,
   Alert,
   TextInput,
+  ScrollView,
   StyleSheet,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -65,7 +66,7 @@ function fmtTime(d: Date): string {
   return `${`${d.getHours()}`.padStart(2, '0')}:${`${d.getMinutes()}`.padStart(2, '0')}`;
 }
 
-type Seg = 'today' | 'todo' | 'shopping' | 'habit';
+type Seg = 'today' | 'todo' | 'shopping' | 'habit' | 'calendar';
 type UndoState = { msg: string; undo: () => Promise<void> } | null;
 
 // §七 计划页只保留三档：今天 / 待办 / 习惯。
@@ -85,7 +86,7 @@ export default function TasksScreen() {
   const { t } = useI18n();
   const d = useData();
   const route = useRoute<any>();
-  const initialSeg: Seg = route?.params?.seg === 'todo' || route?.params?.seg === 'habit' || route?.params?.seg === 'shopping'
+  const initialSeg: Seg = route?.params?.seg === 'todo' || route?.params?.seg === 'habit' || route?.params?.seg === 'shopping' || route?.params?.seg === 'calendar'
     ? route.params.seg
     : 'today';
   const [seg, setSeg] = useState<Seg>(initialSeg);
@@ -94,7 +95,7 @@ export default function TasksScreen() {
   const segRef = useRef(seg);
   segRef.current = seg;
   useEffect(() => {
-    const next: Seg = route?.params?.seg === 'todo' || route?.params?.seg === 'habit' || route?.params?.seg === 'shopping'
+    const next: Seg = route?.params?.seg === 'todo' || route?.params?.seg === 'habit' || route?.params?.seg === 'shopping' || route?.params?.seg === 'calendar'
       ? route.params.seg
       : 'today';
     if (next !== segRef.current) {
@@ -198,6 +199,7 @@ export default function TasksScreen() {
             { key: 'todo', label: t('plan.segTodo') },
             { key: 'shopping', label: t('plan.segShopping') },
             { key: 'habit', label: t('plan.segHabit') },
+            { key: 'calendar', label: t('plan.segCalendar') },
           ] as const).map((s) => {
             const isA = s.key === seg;
             return (
@@ -263,6 +265,17 @@ export default function TasksScreen() {
             onToggleAdding={setAdding}
           />
         </View>
+      )}
+
+      {seg === 'calendar' && (
+        <CalendarSub
+          tasks={d.tasks}
+          today={today}
+          onToggle={toggleTask}
+          onDelete={deleteTask}
+          confirmDelete={confirmDelete}
+          bottomInset={bottomInset}
+        />
       )}
 
       {shouldShowAddFab(adding) && (
@@ -522,6 +535,152 @@ function HabitSub({
       keyboardShouldPersistTaps="handled"
       initialNumToRender={12}
     />
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 日历 / 月视图：纯展示层，复用 Task[]，无存储 / SCHEMA 改动             */
+/* ------------------------------------------------------------------ */
+
+function CalendarSub({
+  tasks,
+  today,
+  onToggle,
+  onDelete,
+  confirmDelete,
+  bottomInset,
+}: {
+  tasks: Task[];
+  today: string;
+  onToggle: (t: Task) => void;
+  onDelete: (t: Task) => void;
+  confirmDelete: (name: string, fn: () => void) => void;
+  bottomInset: number;
+}) {
+  const { theme } = useTheme();
+  const { t } = useI18n();
+
+  const [ym, setYm] = useState<string>(today.slice(0, 7)); // 'YYYY-MM'
+  const [sel, setSel] = useState<string>(today); // 'YYYY-MM-DD'
+
+  // 按日期把任务分组（含已完成），日期单元格有任务则显示圆点
+  const byDate = useMemo(() => {
+    const m: Record<string, Task[]> = {};
+    for (const x of tasks) {
+      if (!x.date) continue;
+      if (!m[x.date]) m[x.date] = [];
+      m[x.date].push(x);
+    }
+    return m;
+  }, [tasks]);
+
+  const [yy, mm] = ym.split('-').map(Number);
+  const firstDow = new Date(yy, mm - 1, 1).getDay(); // 0 = 周日，与 week0..6 对齐
+  const daysInMonth = new Date(yy, mm, 0).getDate();
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  const weekLabels = [
+    t('plan.week0'),
+    t('plan.week1'),
+    t('plan.week2'),
+    t('plan.week3'),
+    t('plan.week4'),
+    t('plan.week5'),
+    t('plan.week6'),
+  ];
+
+  const monthLabel = `${yy}·${`${mm}`.padStart(2, '0')}`;
+  const selList = byDate[sel] || [];
+  const selHasTasks = selList.length > 0;
+
+  const shift = (delta: number) => {
+    const nd = new Date(yy, mm - 1 + delta, 1);
+    setYm(`${nd.getFullYear()}-${`${nd.getMonth() + 1}`.padStart(2, '0')}`);
+  };
+
+  return (
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={{ paddingHorizontal: pageMargin, paddingTop: space.sm, paddingBottom: bottomInset }}
+      keyboardShouldPersistTaps="handled"
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.sm }}>
+        <IconButton name={ICONS.chevronLeft} color={theme.onSurfaceVariant} onPress={() => shift(-1)} accessibilityLabel={t('plan.calPrev')} />
+        <M3Text role="titleMedium">{monthLabel}</M3Text>
+        <IconButton name={ICONS.chevronRight} color={theme.onSurfaceVariant} onPress={() => shift(1)} accessibilityLabel={t('plan.calNext')} />
+      </View>
+      <View style={{ flexDirection: 'row', marginBottom: 4 }}>
+        {weekLabels.map((w, i) => (
+          <View key={i} style={{ flex: 1, alignItems: 'center' }}>
+            <M3Text role="labelSmall" color={theme.onSurfaceVariant}>{w}</M3Text>
+          </View>
+        ))}
+      </View>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+        {cells.map((d, i) => {
+          if (d == null) return <View key={`b${i}`} style={{ width: '14.2857%', aspectRatio: 1 }} />;
+          const ds = `${ym}-${`${d}`.padStart(2, '0')}`;
+          const has = !!byDate[ds] && byDate[ds].length > 0;
+          const isToday = ds === today;
+          const isSel = ds === sel;
+          return (
+            <TouchableOpacity
+              key={ds}
+              onPress={() => setSel(ds)}
+              accessibilityRole="button"
+              accessibilityLabel={`${ds}${has ? ' · ' + t('plan.calTasksOnDay') : ''}`}
+              style={{ width: '14.2857%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <View
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 19,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: isSel ? theme.primaryContainer : 'transparent',
+                }}
+              >
+                <M3Text
+                  role="bodyMedium"
+                  color={isSel ? theme.onPrimaryContainer : isToday ? theme.primary : theme.onSurface}
+                >
+                  {d}
+                </M3Text>
+              </View>
+              {has && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    bottom: 4,
+                    width: 5,
+                    height: 5,
+                    borderRadius: 2.5,
+                    backgroundColor: isSel ? theme.onPrimaryContainer : theme.primary,
+                  }}
+                />
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <View style={{ marginTop: space.lg }}>
+        <SectionLabel text={t('plan.calTasksOnDay')} color={theme.onSurfaceVariant} icon={ICONS.calendar} />
+        {selHasTasks ? (
+          selList.map((task) => (
+            <TaskRow key={task.id} task={task} onToggle={onToggle} onDelete={onDelete} confirmDelete={confirmDelete} />
+          ))
+        ) : (
+          <View style={{ marginTop: space.md }}>
+            <EmptyState icon={ICONS.tasks} title={t('plan.calEmpty')} />
+          </View>
+        )}
+      </View>
+    </ScrollView>
   );
 }
 
