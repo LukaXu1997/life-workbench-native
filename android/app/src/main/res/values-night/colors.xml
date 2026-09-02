@@ -1,1 +1,7 @@
-<resources/>
+<resources>
+  <!-- Dark-mode overrides: eliminate white flash on splash / launcher in night mode.
+       Logo (light-gray concentric circles) has BETTER contrast on #191919 than on white. -->
+  <color name="splashscreen_background">#191919</color>
+  <color name="iconBackground">#191919</color>
+  <color name="colorPrimaryDark">#191919</color>
+</resources>

@@ -8,7 +8,7 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 6, PATCH: 4 } as const;
+export const APP_VERSION = { MAJOR: 2, MINOR: 6, PATCH: 5 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.0.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.0.0"
@@ -19,7 +19,17 @@ export const BUILD_DATE = '2026-08-30';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.6.4 — 2026-08-30
+export const RELEASE_NOTES = `V2.6.5 — 2026-09-02
+深色模式原生层精修（纯视觉/原生资源层，不动逻辑与 SCHEMA_VERSION）：
+
+· 新增 values-night/colors.xml：splashscreen_background → #191919（对齐 theme.bg 深色），消除深色模式下 App 启动时的白屏闪
+· iconBackground 夜间覆盖为 #191919：修复深色桌面下 launcher 图标背景白块问题
+· colorPrimaryDark 夜间覆盖为 #191919：避免深色下系统 tint/状态栏遗留白色闪烁
+· 实证截图 QA：切换设备至系统深色模式，截取 Home 屏验证 token 渲染质量——JS 主题层零硬编码泄漏、对比度充足、tonal elevation 分层正确、语义色（绿收入/红支出）在深底上清晰可辨
+· tokens.ts 静态阴影在深色下 opacity 极低且近黑，实测不可见，符合 Apple/Notion 深色无投影原则，故未做降级重构（避免无谓改动）
+· 纯展示层改动：不动 SCHEMA_VERSION（仍为 2）
+
+V2.6.4 — 2026-08-30
 日记页视觉一致性打磨 + 我的/设置子页审查（纯视觉，未改动 SCHEMA_VERSION）：
 
 · 速记勾选控件统一为与 Plan/Home 一致的 48dp 实心勾选圈（CheckCircle）：完成=primaryContainer 实心+check，未完成=surfaceContainer+描边，消除此前 18dp 绿色描边 IconTile 的第三种不一致样式

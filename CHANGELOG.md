@@ -10,6 +10,18 @@
 
 ---
 
+## V2.6.5 — 2026-09-02
+
+深色模式原生层精修（纯视觉/原生资源层，不动逻辑与 SCHEMA_VERSION）：
+
+- 新增 `values-night/colors.xml`：`splashscreen_background` → `#191919`（对齐 `theme.bg` 深色），消除深色模式下 App 启动时的**白屏闪**
+- `iconBackground` 夜间覆盖为 `#191919`：修复深色桌面下 launcher 图标背景白块
+- `colorPrimaryDark` 夜间覆盖为 `#191919`：避免深色下系统 tint 遗留白色闪烁
+- **实证截图 QA**：设备切系统深色 → 截取 Home 屏 → JS 主题层零泄漏、对比度充足、tonal elevation 正确、语义色清晰
+- `tokens.ts` 阴影在深色下已不可见（符合 Apple/Notion 原则），未做降级重构
+
+---
+
 ## V2.6.4 — 2026-08-30
 
 日记页视觉一致性打磨 + 我的/设置子页审查（纯视觉，未改动 SCHEMA_VERSION）：
