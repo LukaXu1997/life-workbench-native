@@ -290,6 +290,8 @@ export const en = {
     reminderPermissionDenied: 'Notification permission denied, cannot set reminder',
     reminderScheduled: 'Reminder set',
     reminderAt: 'Reminder: %{time}',
+    reminderTitle: 'Reminder: %{title}',
+    reminderTimeLead: '%{time} · %{lead}',
     habitReminder: 'Habit reminder',
     habitReminderHint: 'You will get a daily check-in nudge at this time',
     habitReminderBody: 'Time to check in',

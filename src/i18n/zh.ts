@@ -290,6 +290,8 @@ export const zh = {
     reminderPermissionDenied: '通知权限被拒绝，无法设置提醒',
     reminderScheduled: '已设定提醒',
     reminderAt: '提醒：%{time}',
+    reminderTitle: '提醒：%{title}',
+    reminderTimeLead: '%{time} · %{lead}',
     habitReminder: '习惯提醒',
     habitReminderHint: '设置后每天此时会推送打卡提醒',
     habitReminderBody: '到时间打卡啦',

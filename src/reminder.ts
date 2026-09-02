@@ -107,11 +107,17 @@ export async function scheduleTaskReminder(task: Task): Promise<boolean> {
   const allowed = await ensureReminderPermission();
   if (!allowed) return false;
   try {
+    const lead = leadLabel(task.reminder as number);
+    const title =
+      task.title && task.title.trim()
+        ? t('plan.reminderTitle', { title: task.title.trim() })
+        : t('plan.reminder');
+    const when = task.time || '09:00';
     await Notifications.scheduleNotificationAsync({
       identifier: `task-${task.id}`,
       content: {
-        title: task.title,
-        body: t('plan.reminderAt', { time: leadLabel(task.reminder as number) }),
+        title,
+        body: t('plan.reminderTimeLead', { time: when, lead }),
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,

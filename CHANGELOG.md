@@ -10,6 +10,21 @@
 
 ---
 
+## V2.13.3 — 2026-09-02
+本地任务提醒通知内容优化（纯展示层，不改逻辑与 SCHEMA_VERSION）：
+
+- 标题改为「提醒：{任务名}」（如 提醒：会议 / Reminder: Meeting），一眼看清是哪条任务，不再显示空标题占位
+- 正文改为「{任务时间} · {提前量}」（如 16:30 · 准时 / 16:30 · 30分钟前），到点前多久、任务几点一目了然
+- 仅改通知文案结构与两条新增 i18n 文案（reminderTitle / reminderTimeLead），未改动调度/存储/SCHEMA_VERSION（仍为 2）
+
+## V2.13.2 — 2026-09-02
+修复 Android 12+ 本地提醒到点不弹（精确闹钟权限缺失）：
+
+- 根因：APK 未声明 SCHEDULE_EXACT_ALARM / USE_EXACT_ALARM，expo-notifications 底层 setExact 被系统降级为非精确触发，闹钟虽登记但不准时弹出（实测 Android 15 / SDK 37）
+- 修复：app.json android.permissions 新增 android.permission.SCHEDULE_EXACT_ALARM 与 android.permission.USE_EXACT_ALARM（USE_EXACT_ALARM 声明即由系统自动授权，最适合提醒类应用）
+- 通知权限 POST_NOTIFICATIONS、双渠道 task/habit、DND 状态经真机核实均正常，问题仅出在精确闹钟权限缺失
+- 纯权限声明修复，未改动 TS 逻辑、存储结构与 SCHEMA_VERSION（仍为 2）
+
 ## V2.13.1 — 2026-09-02
 
 提醒提前量选择器改为内联下拉（纯 UI 打磨，不改逻辑与 SCHEMA_VERSION）：
