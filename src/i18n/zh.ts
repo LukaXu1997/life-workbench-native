@@ -229,6 +229,13 @@ export const zh = {
     addedSubtask: '已添加子任务',
     deletedSubtask: '已删除子任务',
     deleteSubtaskA11y: '删除子任务「%{name}」',
+    repeat: '重复',
+    repeatNone: '不重复',
+    repeatDaily: '每天',
+    repeatWeekly: '每周',
+    repeatMonthly: '每月',
+    repeatYearly: '每年',
+    generatedNextRecurring: '已生成下一笔重复任务',
   },
   habitCal: {
     monthYear: '%{month} %{year}',

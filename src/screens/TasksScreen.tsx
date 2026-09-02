@@ -31,7 +31,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { radius, space, pageMargin, touchMin } from '../tokens';
 import { useBottomContentInset } from '../components/layout';
 import { AppBottomSheet } from '../components/anim';
-import type { Task, SubTask, Habit, ShopItem, Priority, HabitType, ShopPriority, Currency } from '../types';
+import type { Task, SubTask, Habit, ShopItem, Priority, HabitType, ShopPriority, Currency, RepeatFrequency } from '../types';
 import {
   shouldShowAddFab,
   classifySchedule,
@@ -64,6 +64,26 @@ function parseTime(s: string): Date {
 }
 function fmtTime(d: Date): string {
   return `${`${d.getHours()}`.padStart(2, '0')}:${`${d.getMinutes()}`.padStart(2, '0')}`;
+}
+
+// ---- 重复任务：按频率偏移日期 ----
+const REPEAT_LABELS: Record<Exclude<RepeatFrequency, 'none'>, string> = {
+  daily: 'D',
+  weekly: 'W',
+  monthly: 'M',
+  yearly: 'Y',
+};
+function addPeriod(dateStr: string, freq: RepeatFrequency): string {
+  if (!freq || freq === 'none') return dateStr;
+  const d = parseDate(dateStr);
+  switch (freq) {
+    case 'daily': d.setDate(d.getDate() + 1); break;
+    case 'weekly': d.setDate(d.getDate() + 7); break;
+    case 'monthly': d.setMonth(d.getMonth() + 1); break;
+    case 'yearly': d.setFullYear(d.getFullYear() + 1); break;
+    default: return dateStr;
+  }
+  return fmtDate(d);
 }
 
 type Seg = 'calendar' | 'todo' | 'shopping' | 'habit';
@@ -116,8 +136,27 @@ export default function TasksScreen() {
 
   const toggleTask = async (t2: Task) => {
     const prev = { ...t2 };
+    const completing = !t2.completed;
     const list = await store.getTasks();
     await store.setTasks(list.map((x) => (x.id === t2.id ? { ...x, completed: !x.completed } : x)));
+    // 重复任务：完成时自动生成下一笔
+    if (completing && t2.repeat && t2.repeat !== 'none') {
+      const nextDate = addPeriod(t2.date, t2.repeat);
+      const nextSubs = (t2.subtasks || []).map((s) => ({ ...s, done: false }));
+      const nextTask: Task = {
+        id: uid('t'), title: t2.title, date: nextDate, time: t2.time || '',
+        priority: t2.priority, category: t2.category, note: t2.note,
+        completed: false, createdAt: Date.now(), repeat: t2.repeat,
+        ...(nextSubs.length > 0 ? { subtasks: nextSubs } : {}),
+      };
+      const updated = await store.getTasks();
+      await store.setTasks([...updated, nextTask]);
+      showUndo(t('plan.generatedNextRecurring'), async () => {
+        const l = await store.getTasks();
+        await store.setTasks(l.filter((x) => x.id !== nextTask.id));
+      });
+      return;
+    }
     showUndo(prev.completed ? t('plan.toggleUndone') : t('plan.toggleDone'), async () => {
       const l = await store.getTasks();
       await store.setTasks(l.map((x) => (x.id === t2.id ? prev : x)));
@@ -200,6 +239,32 @@ export default function TasksScreen() {
     setSeg(next);
     setAdding(false);
   };
+
+  // ---- 启动时补生成过期的重复任务 ----
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const all = await store.getTasks();
+      const today = todayStr();
+      const toGenerate: Task[] = [];
+      for (const t of all) {
+        if (!t.completed || !t.repeat || t.repeat === 'none') continue;
+        let nextDate = addPeriod(t.date, t.repeat);
+        for (let i = 0; i < 20; i++) {
+          if (all.some((x) => x.id !== t.id && x.title === t.title && x.date === nextDate && !x.completed && x.repeat === t.repeat)) break;
+          if (nextDate > today) break;
+          toGenerate.push({ ...t, id: uid('t'), date: nextDate, completed: false, createdAt: Date.now(), subtasks: (t.subtasks || []).map((s) => ({ ...s, done: false })) });
+          nextDate = addPeriod(nextDate, t.repeat);
+        }
+      }
+      if (toGenerate.length > 0 && !cancelled) {
+        const current = await store.getTasks();
+        await store.setTasks([...current, ...toGenerate]);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
@@ -842,6 +907,13 @@ function TaskRow({
             />
           </View>
         ) : null}
+        {task.repeat && task.repeat !== 'none' ? (
+          <View style={{ paddingVertical: 4, paddingHorizontal: 8, borderRadius: radius.sm, backgroundColor: theme.surfaceContainer }}>
+            <M3Text role="labelSmall" color={theme.primary}>
+              {REPEAT_LABELS[task.repeat] || task.repeat}
+            </M3Text>
+          </View>
+        ) : null}
         {task.priority !== 'P2' ? (
           <Badge
             text={task.priority}
@@ -936,6 +1008,7 @@ function ScheduleForm({ today, onClose }: { today: string; onClose: () => void }
   const [time, setTime] = useState('');
   const [priority, setPriority] = useState<Priority>('P1');
   const [category, setCategory] = useState(t('plan.defaultCategory'));
+  const [repeat, setRepeat] = useState<RepeatFrequency>('none');
   const [showDate, setShowDate] = useState(false);
   const [showTime, setShowTime] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -963,7 +1036,7 @@ function ScheduleForm({ today, onClose }: { today: string; onClose: () => void }
       const list = await store.getTasks();
       await store.setTasks([
         ...list,
-        { id: uid('t'), title: title.trim(), date, time, priority, category, note: '', completed: false, createdAt: Date.now() },
+        { id: uid('t'), title: title.trim(), date, time, priority, category, note: '', completed: false, createdAt: Date.now(), repeat: repeat !== 'none' ? repeat : undefined },
       ]);
       onClose();
     } finally {
@@ -1001,6 +1074,16 @@ function ScheduleForm({ today, onClose }: { today: string; onClose: () => void }
       </View>
       <View style={{ marginTop: 12 }}>
         <TextField label={t('plan.categoryLabel')} value={category} onChangeText={setCategory} placeholder={t('plan.categoryPlaceholder')} />
+      </View>
+      <M3Text role="labelMedium" color={theme.onSurfaceVariant} style={{ marginTop: 12, marginBottom: 6 }}>{t('plan.repeat')}</M3Text>
+      <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+        {(['none', 'daily', 'weekly', 'monthly', 'yearly'] as const).map((r) => (
+          <TouchableOpacity key={r} onPress={() => setRepeat(r)} style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.md, backgroundColor: repeat === r ? theme.primary : theme.surfaceContainer }}>
+            <M3Text role="labelLarge" color={repeat === r ? theme.primary : theme.onSurfaceVariant}>
+              {r === 'none' ? t('plan.repeatNone') : r === 'daily' ? t('plan.repeatDaily') : r === 'weekly' ? t('plan.repeatWeekly') : r === 'monthly' ? t('plan.repeatMonthly') : t('plan.repeatYearly')}
+            </M3Text>
+          </TouchableOpacity>
+        ))}
       </View>
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
         <PrimaryButton label={busy ? t('common.processing') : t('common.add')} onPress={submit} disabled={!titleValid || busy} style={{ flex: 1 }} />

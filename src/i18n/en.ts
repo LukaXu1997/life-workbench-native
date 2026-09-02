@@ -229,6 +229,13 @@ export const en = {
     addedSubtask: 'Subtask added',
     deletedSubtask: 'Subtask deleted',
     deleteSubtaskA11y: 'Delete subtask "%{name}"',
+    repeat: 'Repeat',
+    repeatNone: 'None',
+    repeatDaily: 'Daily',
+    repeatWeekly: 'Weekly',
+    repeatMonthly: 'Monthly',
+    repeatYearly: 'Yearly',
+    generatedNextRecurring: 'Generated next recurring task',
   },
   habitCal: {
     monthYear: '%{month} %{year}',

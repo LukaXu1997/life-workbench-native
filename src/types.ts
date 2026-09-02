@@ -119,6 +119,7 @@ export interface SubTask {
   title: string;
   done: boolean;
 }
+export type RepeatFrequency = 'none' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 export interface Task {
   id: string;
   title: string;
@@ -130,6 +131,7 @@ export interface Task {
   completed: boolean;
   createdAt: number;
   subtasks?: SubTask[]; // optional — backward compatible; absent = no subtasks
+  repeat?: RepeatFrequency; // optional — backward compatible; absent/none = one-off task
 }
 
 export type ShopPriority = '高' | '中' | '低';

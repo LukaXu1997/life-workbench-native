@@ -10,6 +10,21 @@
 
 ---
 
+## V2.8.0 — 2026-08-30
+
+重复任务（Recurring Tasks，零新增依赖）：
+
+- Task 新增可选 `repeat` 字段（`RepeatFrequency`：`none` / `daily` / `weekly` / `monthly` / `yearly`），向后兼容，旧数据无此字段仍正常
+- 任务表单新增「重复」分段控件（不重复 / 每天 / 每周 / 每月 / 每年），创建时可设定重复频率
+- `TaskRow` 新增重复徽章：有 `repeat` 的任务行末显示频率缩写（`D` / `W` / `M` / `Y`）底色标识
+- **完成时自动生成下一笔**：勾选完成的重复任务自动按频率偏移日期创建新任务（保留标题 / 优先级 / 分类 / 备注 / 子任务）
+- **启动补生成**：App 冷启动时扫描已完成的重复任务，对过期的自动补生成下一笔（最多向前查 20 笔，去重防重复）
+- 撤销支持：自动生成的下一笔可通过 Snackbar 撤销单独移除（不影响原任务完成态）
+- 全量 CN / EN i18n：`repeat` / `repeatNone` / `repeatDaily` / `repeatWeekly` / `repeatMonthly` / `repeatYearly` / `generatedNextRecurring` 共 8 条
+- 纯数据扩展：`repeat` 为可选字段，未改动 `SCHEMA_VERSION`（仍为 2）
+
+---
+
 ## V2.7.0 — 2026-08-30
 
 任务子任务（功能小版本，零新增依赖）：
