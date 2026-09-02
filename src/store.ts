@@ -167,6 +167,12 @@ function emitChange(key?: string) {
   listeners.forEach((l) => l(key));
 }
 
+// ---- user profile: 显示名变更订阅（用于跨页同步到「今日」问候语） ----
+const profileNameListeners = new Set<() => void>();
+function emitProfileNameChange() {
+  profileNameListeners.forEach((l) => l());
+}
+
 // ---- typed accessors ----
 export const store = {
   getTxns: () => getJSON<Txn[]>(KEYS.txns, []),
@@ -278,7 +284,14 @@ export const store = {
   setSyncPass: (p: string) => secureSet(SECURE_KEYS.syncPass, p),
   // ---- user profile ----
   getProfileName: () => getJSON<string>(KEYS.profileName, ''),
-  setProfileName: (v: string) => setJSON(KEYS.profileName, v),
+  setProfileName: (v: string) => {
+    setJSON(KEYS.profileName, v);
+    emitProfileNameChange();
+  },
+  onProfileNameChange: (fn: () => void): (() => void) => {
+    profileNameListeners.add(fn);
+    return () => { profileNameListeners.delete(fn); };
+  },
   getProfileAvatar: () => getJSON<string>(KEYS.profileAvatar, 'me'),
   setProfileAvatar: (v: string) => setJSON(KEYS.profileAvatar, v),
   getProfileAvatarPhoto: () => getJSON<string | null>(KEYS.profileAvatarPhoto, null),

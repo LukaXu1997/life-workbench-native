@@ -8,7 +8,7 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 14, PATCH: 5 } as const;
+export const APP_VERSION = { MAJOR: 2, MINOR: 14, PATCH: 6 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.13.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.13.0"
@@ -19,7 +19,15 @@ export const BUILD_DATE = '2026-09-02';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.14.5 — 2026-09-02
+export const RELEASE_NOTES = `V2.14.6 — 2026-09-02
+界面打磨三处（SCHEMA_VERSION 仍为 2，纯前端 UI）：
+
+· 数据与安全：移除「生物识别诊断」区块（硬件 / 支持类型 / 是否已录入 / 安全等级 / 最后错误码），页面更克制专业；应用锁开关与「不可用原因」提示保留
+· 用户名同步：今日页问候语不再写死 "Luka"，改为读取「我的」页可编辑的用户名（store.getProfileName）；store 新增 onProfileNameChange 订阅，「我的」改名后今日页实时刷新「晚上好，{用户名}」
+· 识别来源 App：删除重复的旧包名选项 —— Grab 的 com.grabtaxi（误写，正确为 com.grabtaxi.passenger）、TnG 的 com.tngdigital.wallet（误写，正确为 my.com.tngdigital.ewallet）；保留官方包名，避免同一 App 出现两个来源选项
+· 纯增量：versionCode 21405 → 21406，未改动存储结构与 SCHEMA_VERSION
+
+V2.14.5 — 2026-09-02
 拓展电子钱包付款实时捕获至国内 App 拼多多（SCHEMA_VERSION 仍为 2）：
 
 · 包名确认：拼多多真实包名为 com.xunmeng.pinduoduo（小米应用商店 / 当快 / 西西 / techylist 多源一致，厂商「上海寻梦信息技术有限公司」）

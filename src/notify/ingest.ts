@@ -14,10 +14,8 @@ export interface IngestResult {
 }
 
 export const APP_LABELS: Record<string, string> = {
-  'com.tngdigital.wallet': "Touch 'n Go",
   'my.com.tngdigital.ewallet': "Touch 'n Go",
   'com.grabtaxi.passenger': 'GrabPay',
-  'com.grabtaxi': 'GrabPay',
   'com.shopee.my': 'ShopeePay',
   'com.lazada.android': 'Lazada',
   'my.boost.app': 'Boost',

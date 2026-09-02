@@ -5,8 +5,6 @@ import {
   supportKind,
   canEnableBiometric,
   verifyNow,
-  AuthenticationType,
-  SecurityLevel,
   type BiometricDiagnostics,
   type BiometricSupportKind,
 } from '../../biometric';
@@ -74,7 +72,6 @@ export default function DataAndSecurityScreen({ navigation }: { navigation: any 
   const [deviceFallback, setDeviceFallback] = useState(true);
   const [diag, setDiag] = useState<BiometricDiagnostics | null>(null);
   const [bioSec, setBioSec] = useState<'standard' | 'high'>('standard');
-  const [lastError, setLastError] = useState<string | null>(null);
   const [busyVerify, setBusyVerify] = useState(false);
   const [lockSheetOpen, setLockSheetOpen] = useState(false);
 
@@ -87,7 +84,6 @@ export default function DataAndSecurityScreen({ navigation }: { navigation: any 
     store.getBiometricHideRecents().then(setHideRecents);
     store.getBiometricDeviceFallback().then(setDeviceFallback);
     store.getBiometricSecurity().then(setBioSec);
-    store.getBiometricLastError().then(setLastError);
     // 4 项非敏感诊断：是否有硬件 / 支持类型 / 是否已录入 / 安全等级。
     getBiometricDiagnostics().then(setDiag);
   }, []);
@@ -205,31 +201,9 @@ export default function DataAndSecurityScreen({ navigation }: { navigation: any 
     ? t('settings.lastSync', { time: new Date(cfg.lastSync).toLocaleString() })
     : undefined;
 
-  // —— 生物识别诊断派生展示（仅非敏感标量）——
+  // —— 应用锁可用性派生（仅非敏感标量）——
   const kind: BiometricSupportKind | null = diag ? supportKind(diag) : null;
   const canEnable = diag ? canEnableBiometric(diag) : false;
-  const typeLabels = (diag?.supportedTypes ?? [])
-    .map((tp) =>
-      tp === AuthenticationType.FINGERPRINT
-        ? t('settings.biometricDiagFingerprint')
-        : tp === AuthenticationType.FACIAL_RECOGNITION
-        ? t('settings.biometricDiagFace')
-        : tp === AuthenticationType.IRIS
-        ? t('settings.biometricDiagIris')
-        : String(tp),
-    )
-    .join(' / ');
-  const typesText = typeLabels || t('settings.biometricDiagNone');
-  const levelText = !diag
-    ? '-'
-    : diag.enrolledLevel === SecurityLevel.BIOMETRIC_STRONG
-    ? t('settings.biometricLevelStrong')
-    : diag.enrolledLevel === SecurityLevel.BIOMETRIC_WEAK
-    ? t('settings.biometricLevelWeak')
-    : diag.enrolledLevel === SecurityLevel.SECRET
-    ? t('settings.biometricLevelSecret')
-    : t('settings.biometricDiagNone');
-  const lastErrText = lastError || t('settings.biometricDiagNone');
 
   return (
     <SubPage title={t('me.dataSecurity')} onBack={() => navigation.goBack()}>
@@ -363,61 +337,6 @@ export default function DataAndSecurityScreen({ navigation }: { navigation: any 
             }
           />
         ) : null}
-      </ListGroup>
-
-      {/* ②⅔ 生物识别诊断：仅展示非敏感设备能力，便于排查「为何无法使用应用锁」 */}
-      <ListGroup
-        title={t('settings.biometricDiagTitle')}
-        footer={t('settings.biometricDiagFooter')}
-      >
-        <NavRow
-          icon={ICONS.fingerprint}
-          title={t('settings.biometricDiagHardware')}
-          trailing={
-            <M3Text role="labelMedium" color={theme.onSurfaceVariant}>
-              {diag ? (diag.hasHardware ? t('common.yes') : t('common.no')) : '-'}
-            </M3Text>
-          }
-        />
-        <NavRow
-          title={t('settings.biometricDiagTypes')}
-          trailing={
-            <M3Text role="labelMedium" color={theme.onSurfaceVariant}>
-              {diag ? typesText : '-'}
-            </M3Text>
-          }
-        />
-        <NavRow
-          title={t('settings.biometricDiagEnrolled')}
-          trailing={
-            <M3Text role="labelMedium" color={theme.onSurfaceVariant}>
-              {diag ? (diag.isEnrolled ? t('common.yes') : t('common.no')) : '-'}
-            </M3Text>
-          }
-        />
-        <NavRow
-          title={t('settings.biometricDiagLevel')}
-          trailing={
-            <M3Text role="labelMedium" color={theme.onSurfaceVariant}>
-              {diag ? levelText : '-'}
-            </M3Text>
-          }
-        />
-        <NavRow
-          title={t('settings.biometricDiagLastError')}
-          trailing={
-            <M3Text role="labelMedium" color={theme.onSurfaceVariant}>
-              {diag ? lastErrText : '-'}
-            </M3Text>
-          }
-        />
-        {/* 底层原因：仅在诊断本身失败时出现，直接给出原始 message，便于定位而非猜测 */}
-        {!!diag?.errorDetail && (
-          <NavRow
-            title={t('settings.biometricDiagDetail')}
-            subtitle={diag.errorDetail}
-          />
-        )}
       </ListGroup>
 
       {/* ③ 连接配置 —— 默认折叠，复杂字段不占据首屏 */}

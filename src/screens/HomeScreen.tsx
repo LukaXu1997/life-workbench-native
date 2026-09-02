@@ -83,10 +83,24 @@ export default function HomeScreen({ navigation }: any) {
   const { width: screenW, fontScale } = useWindowDimensions();
   const narrow = screenW < NARROW;
   const bottomInset = useBottomContentInset();
+  const [profileName, setProfileName] = useState('Luka');
 
   // §五.6 首次挂载后标记「已播放」，之后返回首页不再重播逐条淡入
   useEffect(() => {
     homeRecentIntroPlayed = true;
+  }, []);
+
+  // 用户名（"我的"页可编辑）实时同步到今日问候：挂载即读取，改名时刷新
+  useEffect(() => {
+    let alive = true;
+    const load = () => {
+      store.getProfileName().then((n) => {
+        if (alive) setProfileName(n || 'Luka');
+      });
+    };
+    load();
+    const off = store.onProfileNameChange(load);
+    return () => { alive = false; off(); };
   }, []);
 
   /* ---------------------------------------------------------------- */
@@ -219,7 +233,7 @@ export default function HomeScreen({ navigation }: any) {
             : hh < 22
               ? 'greetEvening'
               : 'greetNight';
-  const greetTitle = t('home.' + greetKey, { name: 'Luka' });
+  const greetTitle = t('home.' + greetKey, { name: profileName });
 
   /* ---------------------------------------------------------------- */
   /* 2. 财务主卡                                                       */
