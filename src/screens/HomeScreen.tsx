@@ -302,6 +302,7 @@ export default function HomeScreen({ navigation }: any) {
         minor={netPrimary}
         cur={primary}
         maxFont={34}
+        weight="500"
         color={netPrimaryColor}
         style={{ marginTop: 2 }}
         accessibilityLabel={t('home.monthBalance') + ' ' + formatMoney(netPrimary, primary)}
@@ -312,7 +313,7 @@ export default function HomeScreen({ navigation }: any) {
           minor={netSecondary}
           cur={secondary}
           maxFont={22}
-          weight="500"
+          weight="400"
           color={netSecondaryColor}
           style={{ marginTop: 2 }}
           accessibilityLabel={formatMoney(netSecondary, secondary)}
@@ -375,7 +376,7 @@ export default function HomeScreen({ navigation }: any) {
               justifyContent: 'center',
               paddingVertical: space.md,
               borderRadius: radius.lg,
-              backgroundColor: theme.surface,
+              backgroundColor: 'transparent',
             }}
           >
             <Icon name={a.icon} size={24} color={theme.primary} />

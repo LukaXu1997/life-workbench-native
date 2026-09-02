@@ -8,18 +8,26 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 14, PATCH: 6 } as const;
+export const APP_VERSION = { MAJOR: 2, MINOR: 14, PATCH: 7 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.13.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.13.0"
 export const VERSION_CODE = APP_VERSION.MAJOR * 10000 + APP_VERSION.MINOR * 100 + APP_VERSION.PATCH; // 21300
 
 // Set on each release.
-export const BUILD_DATE = '2026-09-02';
+export const BUILD_DATE = '2026-09-03';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.14.6 — 2026-09-02
+export const RELEASE_NOTES = `V2.14.7 — 2026-09-03
+Notion 风格 UI/UX 进一步打磨（系统排版 + 首页，SCHEMA_VERSION 仍为 2，纯前端视觉）：
+
+· 大标题负字距：displaySmall(−0.5) / headlineMedium(−0.3) / titleLarge(−0.2) / titleMedium(−0.1) 收紧字偶间距，typography.ts 新增 letterSpacing 字段、M3Text 全局应用——全站标题更克制紧凑，是 Notion / Apple 中性观感的招牌细节
+· 首页余额 hero 字重收敛：本月结余主数字 600 → 500、副币种 500 → 400，弱化「数字喧宾夺主」，层级更靠近 Notion 的轻量标题（tabular-nums 等宽不变，数字切换不跳动）
+· 首页四宫格扁平化：快捷入口由 surface 填充块改为透明 borderless 图标+文字网格（等宽 flex:1 / 24dp 图标 / 14sp 标题 / 按压态不变），更贴 Notion 的留白网格
+· 纯增量：versionCode 21406 → 21407，未改动存储结构与 SCHEMA_VERSION
+
+V2.14.6 — 2026-09-02
 界面打磨三处（SCHEMA_VERSION 仍为 2，纯前端 UI）：
 
 · 数据与安全：移除「生物识别诊断」区块（硬件 / 支持类型 / 是否已录入 / 安全等级 / 最后错误码），页面更克制专业；应用锁开关与「不可用原因」提示保留

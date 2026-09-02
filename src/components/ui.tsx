@@ -86,6 +86,7 @@ export function M3Text({
           fontSize: t.fontSize,
           lineHeight: t.lineHeight,
           fontWeight: t.fontWeight,
+          letterSpacing: t.letterSpacing ?? 0,
           color: color ?? theme.onSurface,
         },
         style,
