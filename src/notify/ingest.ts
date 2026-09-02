@@ -15,8 +15,11 @@ export interface IngestResult {
 
 export const APP_LABELS: Record<string, string> = {
   'com.tngdigital.wallet': "Touch 'n Go",
+  'my.com.tngdigital.ewallet': "Touch 'n Go",
+  'com.grabtaxi.passenger': 'GrabPay',
   'com.grabtaxi': 'GrabPay',
   'com.shopee.my': 'ShopeePay',
+  'com.lazada.android': 'Lazada',
   'my.boost.app': 'Boost',
   'com.themakecompany.mymaybank.mae': 'MAE',
   'com.bigpay': 'BigPay',
@@ -27,6 +30,7 @@ export const APP_LABELS: Record<string, string> = {
   'com.ambank': 'AmBank',
   'com.eg.android.AlipayGphone': 'Alipay',
   'com.tencent.mm': 'WeChat',
+  'com.xunmeng.pinduoduo': '拼多多',
   'com.icbc': 'ICBC',
   'com.ccb': 'CCB',
   'com.abchina': 'ABC',

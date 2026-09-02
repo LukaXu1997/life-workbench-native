@@ -196,6 +196,7 @@ export default function TasksScreen() {
     }
   }, [route?.params?.seg]);
   const [adding, setAdding] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null); // 编辑（V2.13.4）：非空即打开编辑表单
   const [snack, setSnack] = useState<UndoState>(null);
   // 搜索 + 排序（V2.9.0）：待办 / 日历共用，跨分栏保持同步
   const [searchText, setSearchText] = useState('');
@@ -422,6 +423,7 @@ export default function TasksScreen() {
 
   const fabLabel = seg === 'habit' ? t('plan.fabHabit') : seg === 'shopping' ? t('plan.fabShopping') : t('plan.fabTodo');
   const openAdd = () => setAdding(true);
+  const openEdit = (task: Task) => setEditingTask(task);
   const handleSegChange = (next: Seg) => {
     setSeg(next);
     setAdding(false);
@@ -588,6 +590,7 @@ export default function TasksScreen() {
           onToggleSubtask={toggleSubtask}
           onAddSubtask={addSubtask}
           onDeleteSubtask={deleteSubtask}
+          onEdit={openEdit}
           bottomInset={bottomInset}
           selecting={selecting}
           selectedIds={effectiveSelected}
@@ -635,6 +638,7 @@ export default function TasksScreen() {
           onToggleSubtask={toggleSubtask}
           onAddSubtask={addSubtask}
           onDeleteSubtask={deleteSubtask}
+          onEdit={openEdit}
           bottomInset={bottomInset}
         />
       )}
@@ -673,6 +677,16 @@ export default function TasksScreen() {
         )}
       </AppBottomSheet>
       )}
+
+      {/* 编辑日程（V2.13.4）：复用 ScheduleForm，按所选任务预填，保存时原地更新 */}
+      <AppBottomSheet
+        visible={editingTask !== null}
+        onClose={() => setEditingTask(null)}
+        title={t('plan.editSchedule')}
+        scroll
+      >
+        {editingTask && <ScheduleForm today={today} onClose={() => setEditingTask(null)} task={editingTask} />}
+      </AppBottomSheet>
 
       {/* 批量加标签（V2.11.0）：选已有标签或现场新建，选中项统一追加 */}
       <AppBottomSheet
@@ -928,6 +942,7 @@ function TodoSub({
   onToggleSubtask,
   onAddSubtask,
   onDeleteSubtask,
+  onEdit,
   bottomInset,
   selecting,
   selectedIds,
@@ -945,6 +960,7 @@ function TodoSub({
   onToggleSubtask: (task: Task, subId: string) => void;
   onAddSubtask: (task: Task, title: string) => void;
   onDeleteSubtask: (task: Task, subId: string) => void;
+  onEdit: (t: Task) => void;
   bottomInset: number;
   /** 多选模式（V2.11.0） */
   selecting: boolean;
@@ -1014,6 +1030,7 @@ function TodoSub({
               onToggleSubtask={onToggleSubtask}
               onAddSubtask={onAddSubtask}
               onDeleteSubtask={onDeleteSubtask}
+              onEdit={() => onEdit(item.task)}
               selecting={selecting}
               selected={selectedIds.has(item.task.id)}
               onToggleSelect={onToggleSelect}
@@ -1098,6 +1115,7 @@ function CalendarSub({
   onToggleSubtask,
   onAddSubtask,
   onDeleteSubtask,
+  onEdit,
   bottomInset,
 }: {
   tasks: Task[];
@@ -1114,6 +1132,7 @@ function CalendarSub({
   onToggleSubtask: (task: Task, subId: string) => void;
   onAddSubtask: (task: Task, title: string) => void;
   onDeleteSubtask: (task: Task, subId: string) => void;
+  onEdit: (t: Task) => void;
   bottomInset: number;
 }) {
   const { theme } = useTheme();
@@ -1245,6 +1264,7 @@ function CalendarSub({
               onToggleSubtask={onToggleSubtask}
               onAddSubtask={onAddSubtask}
               onDeleteSubtask={onDeleteSubtask}
+              onEdit={() => onEdit(task)}
             />
           ))
         ) : (
@@ -1379,6 +1399,8 @@ function TaskRow({
   onToggleSubtask,
   onAddSubtask,
   onDeleteSubtask,
+  // 编辑（V2.13.4）：点击行主体打开预填编辑表单，按钮区（勾选/删除/展开）不触发
+  onEdit,
   // 多选模式（V2.11.0）—— 全部可选，日历分栏不传即退化为普通行
   selecting = false,
   selected = false,
@@ -1392,6 +1414,7 @@ function TaskRow({
   onToggleSubtask: (task: Task, subId: string) => void;
   onAddSubtask: (task: Task, title: string) => void;
   onDeleteSubtask: (task: Task, subId: string) => void;
+  onEdit?: () => void;
   selecting?: boolean;
   selected?: boolean;
   onToggleSelect?: (id: string) => void;
@@ -1442,7 +1465,14 @@ function TaskRow({
         ) : (
           <CheckCircle checked={task.completed} onToggle={() => onToggle(task)} a11y={task.completed ? t('plan.markUndone') : t('plan.markDone')} theme={theme} />
         )}
-        <View style={{ flex: 1, minWidth: 0 }}>
+        <TouchableOpacity
+          style={{ flex: 1, minWidth: 0 }}
+          onPress={onEdit}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={t('plan.editA11y', { name: task.title })}
+          disabled={!onEdit}
+        >
           <M3Text
             role="bodyLarge"
             numberOfLines={1}
@@ -1462,7 +1492,7 @@ function TaskRow({
               ))}
             </View>
           ) : null}
-        </View>
+        </TouchableOpacity>
         {hasSubs ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
             <M3Text role="labelSmall" color={theme.onSurfaceVariant}>
@@ -1571,23 +1601,24 @@ function HabitRow({
 /* 新增表单（BottomSheet 内，scroll 由 Sheet 承载）                       */
 /* ------------------------------------------------------------------ */
 
-function ScheduleForm({ today, onClose }: { today: string; onClose: () => void }) {
+function ScheduleForm({ today, onClose, task }: { today: string; onClose: () => void; task?: Task }) {
   const { theme } = useTheme();
   const { t } = useI18n();
-  const [title, setTitle] = useState('');
-  const [date, setDate] = useState(today);
-  const [time, setTime] = useState('');
-  const [priority, setPriority] = useState<Priority>('P1');
-  const [category, setCategory] = useState(t('plan.defaultCategory'));
-  const [repeat, setRepeat] = useState<RepeatFrequency>('none');
+  const editing = !!task;
+  const [title, setTitle] = useState(task?.title ?? '');
+  const [date, setDate] = useState(task?.date ?? today);
+  const [time, setTime] = useState(task?.time ?? '');
+  const [priority, setPriority] = useState<Priority>(task?.priority ?? 'P1');
+  const [category, setCategory] = useState(task?.category ?? t('plan.defaultCategory'));
+  const [repeat, setRepeat] = useState<RepeatFrequency>(task?.repeat ?? 'none');
   const [showDate, setShowDate] = useState(false);
   const [showTime, setShowTime] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [tags, setTags] = useState<string[]>([]);
+  const [tags, setTags] = useState<string[]>(task?.tags ?? []);
   const [tagInput, setTagInput] = useState('');
-  // 提醒（V2.13.0）：相对提前量，仅创建时设置
-  const [reminderOn, setReminderOn] = useState(false);
-  const [reminderLead, setReminderLead] = useState<number>(30); // 提前分钟数
+  // 提醒：相对提前量；编辑时按任务已有值预填
+  const [reminderOn, setReminderOn] = useState(task?.reminder != null);
+  const [reminderLead, setReminderLead] = useState<number>(task?.reminder ?? 30); // 提前分钟数
   const [showLeadPicker, setShowLeadPicker] = useState(false); // 内联下拉面板
   const titleRef = useRef<TextInput>(null);
   const titleValid = canSubmitSchedule(title);
@@ -1618,22 +1649,42 @@ function ScheduleForm({ today, onClose }: { today: string; onClose: () => void }
     try {
       const list = await store.getTasks();
       const reminder = reminderOn ? reminderLead : undefined;
-      const newTask: Task = {
-        id: uid('t'),
-        title: title.trim(),
-        date,
-        time,
-        priority,
-        category,
-        note: '',
-        completed: false,
-        createdAt: Date.now(),
-        repeat: repeat !== 'none' ? repeat : undefined,
-        ...(tags.length > 0 ? { tags } : {}),
-        ...(reminder != null ? { reminder } : {}),
-      };
-      await store.setTasks([...list, newTask]);
-      if (reminder != null) await scheduleTaskReminder(newTask);
+      // 编辑：原地更新，保留 id / createdAt / completed / note / subtasks 等不可编辑字段
+      const saved: Task = task
+        ? {
+            ...task,
+            title: title.trim(),
+            date,
+            time,
+            priority,
+            category,
+            repeat: repeat !== 'none' ? repeat : undefined,
+            tags: tags.length > 0 ? tags : undefined,
+            reminder,
+          }
+        : {
+            id: uid('t'),
+            title: title.trim(),
+            date,
+            time,
+            priority,
+            category,
+            note: '',
+            completed: false,
+            createdAt: Date.now(),
+            repeat: repeat !== 'none' ? repeat : undefined,
+            ...(tags.length > 0 ? { tags } : {}),
+            ...(reminder != null ? { reminder } : {}),
+          };
+      if (task) {
+        await store.setTasks(list.map((x) => (x.id === task.id ? saved : x)));
+        // 提醒：先取消旧排程，再按新值重排（关闭提醒则不再排程）
+        await cancelTaskReminder(task.id);
+        if (reminder != null) await scheduleTaskReminder(saved);
+      } else {
+        await store.setTasks([...list, saved]);
+        if (reminder != null) await scheduleTaskReminder(saved);
+      }
       onClose();
     } finally {
       setBusy(false);
@@ -1660,7 +1711,7 @@ function ScheduleForm({ today, onClose }: { today: string; onClose: () => void }
       </View>
       {showDate && <DateTimePicker mode="date" value={parseDate(date)} onChange={(e, sel) => { setShowDate(false); if (e.type === 'set' && sel) setDate(fmtDate(sel)); }} />}
       {showTime && <DateTimePicker mode="time" value={parseTime(time)} onChange={(e, sel) => { setShowTime(false); if (e.type === 'set' && sel) setTime(fmtTime(sel)); }} />}
-      {/* 提醒（V2.12.0）：仅创建时设置 */}
+      {/* 提醒 */}
       <View style={{ marginTop: 12 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <M3Text role="labelMedium" color={theme.onSurfaceVariant}>{t('plan.reminder')}</M3Text>
@@ -1786,7 +1837,7 @@ function ScheduleForm({ today, onClose }: { today: string; onClose: () => void }
         </View>
       </View>
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-        <PrimaryButton label={busy ? t('common.processing') : t('common.add')} onPress={submit} disabled={!titleValid || busy || reminderInPast} style={{ flex: 1 }} />
+        <PrimaryButton label={busy ? t('common.processing') : editing ? t('common.save') : t('common.add')} onPress={submit} disabled={!titleValid || busy || reminderInPast} style={{ flex: 1 }} />
         <Button label={t('common.cancel')} variant="text" onPress={onClose} style={{ flex: 1 }} />
       </View>
     </View>

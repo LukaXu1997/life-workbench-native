@@ -8,7 +8,7 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 13, PATCH: 3 } as const;
+export const APP_VERSION = { MAJOR: 2, MINOR: 14, PATCH: 5 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.13.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.13.0"
@@ -19,7 +19,66 @@ export const BUILD_DATE = '2026-09-02';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.13.3 — 2026-09-02
+export const RELEASE_NOTES = `V2.14.5 — 2026-09-02
+拓展电子钱包付款实时捕获至国内 App 拼多多（SCHEMA_VERSION 仍为 2）：
+
+· 包名确认：拼多多真实包名为 com.xunmeng.pinduoduo（小米应用商店 / 当快 / 西西 / techylist 多源一致，厂商「上海寻梦信息技术有限公司」）
+· 原生金额检测补 CNY：TxnCaptureService 原仅识别 RM，现新增 ¥/￥ 与「元」正则，识别「任意金额 + 成功关键词」即捕获；拼多多付款成功页为 ¥xx.xx +「支付成功」，可正确命中
+· 捕获包名白名单重命名：EWALLET_CAPTURE_PACKAGES → TXN_CAPTURE_PACKAGES（现混合 MYR 电子钱包 + 国内 CNY App，原名不准），并加入 com.xunmeng.pinduoduo；parsers.ts 的 CNY_APP 集合、ingest.ts 的 APP_LABELS（拼多多）同步接入，CNY 解析器此前已就绪
+· 设置页文案泛化：tngCaptureHint（CN/EN）补充拼多多等国内电商、支持 ¥ 金额
+· 纯增量：versionCode 21404 → 21405，未改动存储结构与 SCHEMA_VERSION
+
+V2.14.4 — 2026-09-02
+电子钱包捕获包名全量修正 + 拓展为整套电子钱包（SCHEMA_VERSION 仍为 2）：
+
+· 包名核对：在 Pixel 真机枚举已安装支付 App，确认真实包名 —— TNG=my.com.tngdigital.ewallet、Grab=com.grabtaxi.passenger（原误写 com.grabtaxi 导致 Grab 永远不被门控放行）、Shopee=com.shopee.my、Lazada=com.lazada.android
+· 拓展为整套电子钱包：新增 Lazada（com.lazada.android）到 EWALLET 识别集合、APP_LABELS 标签、无障碍捕获门控白名单；开启「电子钱包付款实时捕获」开关后，把 TnG / Grab / Shopee / Lazada / Boost / MAE / BigPay 全套包名推给原生 isCaptureAllowed，任一钱包付款成功页均可被读屏捕获
+· UI 文案泛化：设置页与 i18n（CN/EN）将「TnG 付款实时捕获」改为「电子钱包付款实时捕获」，Hint 说明覆盖 TnG / Grab / Shopee / Lazada 等
+· 纯增量：versionCode 21403 → 21404，未改动存储结构与 SCHEMA_VERSION
+
+V2.14.3 — 2026-09-02
+TnG 捕获包名修正（根因修复，SCHEMA_VERSION 仍为 2）：
+
+· 根因：真机 TnG eWallet 包名为 my.com.tngdigital.ewallet，而捕获白名单/识别器/标签三处都只写了 com.tngdigital.wallet，导致无障碍门控 isCaptureAllowed 永远 false（服务在 allow 判断处直接 return），且即使读到屏也无法识别为 TnG 交易
+· 修正：parsers.ts EWALLET 集合、pendingStore 的 captureAllowlist / captureEnabled 判定、NotifySettingsTab 开启时写入的白名单、ingest.ts 标签映射，四处均补入 my.com.tngdigital.ewallet（保留 com.tngdigital.wallet 兼容旧变体 / 测试用例）
+· 纯增量：versionCode 21402 → 21403，未改动存储结构与 SCHEMA_VERSION
+
+V2.14.2 — 2026-09-02
+TnG 捕获诊断 + WebView 容错（debug 版，SCHEMA_VERSION 仍为 2）：
+
+· TxnCaptureService 新增隐私安全诊断日志（仅记包名 + 匹配布尔 rm/success + 屏长，绝不记屏内容/金额）：真机 adb logcat -s TxnCapture 可定位「包名未 allow / 读不到屏 / 未匹配 RM / 未匹配 success」卡在哪一步
+· rootInActiveWindow 增加一次 refresh() 重试：应对 WebView/H5 付款成功页在窗口事件触发瞬间节点尚未挂载、首次遍历为空的问题
+· DIAGNOSE=true 为调试开关，定位稳定后正式版置 false
+· 纯增量：versionCode 21401 → 21402，未改动存储结构与 SCHEMA_VERSION
+
+V2.14.1 — 2026-09-02
+无障碍授权状态误判修复 + 权限精简（bug fix，SCHEMA_VERSION 仍为 2）：
+
+· 修复「TnG 付款实时捕获」无障碍权限已在系统开启、App 内仍显示「需要授权」：原 isTxnCaptureEnabled 用 ComponentName.flattenToString()（长式 pkg/pkg.ClassName）与 AccessibilityServiceInfo.id（短式 pkg/.ClassName）做字符串相等比较，Android 下两者形式不一致导致永远判 false；改为基于 ComponentName 的可靠比对（读 Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES + AccessibilityManager.getEnabledAccessibilityServiceList 双路兜底）
+· 权限精简：移除冗余的 USE_EXACT_ALARM（与 SCHEDULE_EXACT_ALARM 重复，后者已满足精准闹钟需求）与 READ_MEDIA_IMAGES（头像/相册用 Android 13+ 系统照片选择器、TnG OCR 走系统分享 content URI，均无需该权限）；保留 INTERNET / VIBRATE / SCHEDULE_EXACT_ALARM / USE_BIOMETRIC
+· 纯增量：versionCode 21400 → 21401，未改动存储结构与 SCHEMA_VERSION
+
+V2.14.0 — 2026-09-02
+TnG 付款实时捕获（无障碍为主 + OCR 截图兜底，复用既有「待确认→确认」记账管线；SCHEMA_VERSION 仍为 2）：
+
+· 根因：Touch 'n Go 付款成功不推送任何系统通知，导致既有通知监听管线（NotificationListenerService）永远收不到 TnG 交易，无法实现「付款后立即统计支出」
+· 方案（混合，无障碍为主 + OCR 兜底）：新增 TxnCaptureService（AccessibilityService），仅在已开启且勾选的 App（默认 Touch 'n Go）上读取付款成功页的「文字节点」（Berjaya/支付成功 + RM xx.xx），生成与通知同构的 NotifyEnvelope（source="accessibility"）；兜底路线为分享 TnG 截图，由 ML Kit 本地 OCR（com.google.mlkit:text-recognition:16.0.1，纯端侧、无网络）识别后同样生成信封（source="ocr"）
+· 两条路线都复用 NotifyBridge.emit + 同一持久队列 + parseEnvelope/recognize/dedup/ingestEnvelope → 待确认列表 → 确认入账，零重复解析/去重逻辑；不自动入账、不发裸通知
+· 隐私边界（显式、有意）：仅读文字节点，不截图、不读剪贴板、不上传；仅对你勾选的 App 生效；屏幕/截图文本只写入 App 私有临时队列（JS 入账后即清空），不持久化原始文本
+· 设置页新增「TnG 付款实时捕获」独立开关：开启时自动把 com.tngdigital.wallet 加入识别来源，并显示无障碍权限授予状态与「前往系统设置授予」跳转；与既有「通知识别」开关相互独立（互不 pause）
+· 启动即下发配置：App 冷启动也会把捕获配置推到原生，无障碍服务在授权后、App 至少运行一次后即常驻生效
+· 全量 CN/EN i18n：tngCapture / tngCaptureHint / tngCaptureOn / tngCaptureOff / tngCaptureOpenSettings / tngCaptureManualHint 共 6 条
+· 纯增量：未改动任何存储结构与写入规则，未动 SCHEMA_VERSION（仍为 2），零破坏性变更
+
+V2.13.4 — 2026-09-02
+修复「待办闹钟不响铃」与「待办建好不能改」两类问题（不动存储结构与 SCHEMA_VERSION，仍为 2）：
+
+· 闹钟不响铃：根因是通知渠道在 V2.13.0 创建时未设 sound，Android 一旦创建即永久静音、且不可改。本次将渠道 ID 升级为 task-reminders-v2 / habit-reminders-v2 强制重建，并补上 sound: 'default' + audioAttributes.usage=ALARM（像闹钟一样响），前台 handler 的 shouldPlaySound 改为 true，通知内容也显式带 sound
+· 待办不能改：此前项目里根本没有「编辑任务」入口——TaskRow 只能勾选/删除/长按多选，没有任何打开已有任务去修改的入口。本次新增「点击任务行主体即打开预填编辑表单」（复用新增表单），保存时原地更新任务（保留 id / createdAt / completed / note / subtasks），并先取消旧提醒再按新值重排程
+· 编辑交互：待办分栏与日历分栏的任务行均支持点击进入编辑；勾选圈、删除、子任务展开按钮不触发编辑，避免误触
+· 全量 CN/EN i18n：新增 editSchedule / editA11y 两条
+
+V2.13.3 — 2026-09-02
 本地任务提醒通知内容优化（纯展示层，不改逻辑与 SCHEMA_VERSION）：
 
 · 标题改为「提醒：{任务名}」（如 提醒：会议 / Reminder: Meeting），一眼看清是哪条任务，不再显示空标题占位

@@ -7,6 +7,8 @@ export interface NotifyConfigInput {
   enabled: boolean;
   paused: boolean;
   allowlist: string[];
+  captureEnabled?: boolean; // TnG real-time capture (AccessibilityService) active
+  captureAllowlist?: string[]; // packages the accessibility service may read
 }
 
 /** Whether the user has granted notification access to this app. */
@@ -17,6 +19,16 @@ export function isListenerEnabled(): Promise<boolean> {
 /** Open the system notification-access settings page (call only on explicit user action). */
 export function openNotifySettings(): void {
   Native.openSettings();
+}
+
+/** Whether the OS has granted this app the AccessibilityService permission for TnG capture. */
+export function isTxnCaptureEnabled(): Promise<boolean> {
+  return Native.isTxnCaptureEnabled().then((v: number) => v === 1);
+}
+
+/** Open the system accessibility settings page (call only on explicit user action). */
+export function openAccessibilitySettings(): void {
+  Native.openAccessibilitySettings();
 }
 
 /** Push the latest enable/pause/allowlist config down to the native service. */

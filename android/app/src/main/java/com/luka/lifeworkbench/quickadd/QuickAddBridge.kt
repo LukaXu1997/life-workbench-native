@@ -4,6 +4,7 @@ import android.content.Intent
 import android.net.Uri
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.modules.core.DeviceEventManagerModule
+import com.luka.lifeworkbench.notify.NotifyConfig
 
 /**
  * Holds the latest deep-link URL and share payload captured from MainActivity intents.
@@ -54,6 +55,11 @@ object QuickAddBridge {
         if (!img.isNullOrBlank()) {
           pendingShareImage = img
           changed = true
+          // Fire-and-forget OCR fallback: when the user enabled real-time capture and
+          // shares a payment screenshot, recognize its text into a notify envelope.
+          if (NotifyConfig.captureEnabled && stream != null) {
+            reactContext?.let { OcrCapture.recognize(it, stream) }
+          }
         }
       }
     }

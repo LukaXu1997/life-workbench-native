@@ -7,4 +7,5 @@
   <string name="shortcut_income_long">快速记一笔收入</string>
   <string name="shortcut_repayment">记录还款</string>
   <string name="shortcut_repayment_long">记录信用卡还款</string>
+  <string name="txn_capture_desc">实时读取 Touch \'n Go 等支付 App 的付款成功页文字，自动生成待确认记账。仅读取屏幕文字节点，不截图、不读剪贴板、不上传；只在你开启「TnG 付款实时捕获」且已勾选对应 App 后生效。</string>
 </resources>

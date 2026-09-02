@@ -58,9 +58,12 @@ function detectKind(text: string): 'expense' | 'income' | 'unknown' {
 type AppHint = 'myr_ewallet' | 'myr_bank' | 'cny_bank' | 'cny_credit';
 
 const EWALLET = new Set([
-  'com.tngdigital.wallet', // Touch n Go
-  'com.grabtaxi', // GrabPay
+  'com.tngdigital.wallet', // Touch n Go (legacy / region variant)
+  'my.com.tngdigital.ewallet', // Touch n Go eWallet (official Play Store package)
+  'com.grabtaxi.passenger', // Grab / GrabPay (official Play Store package)
+  'com.grabtaxi', // Grab (legacy / region variant)
   'com.shopee.my', // ShopeePay
+  'com.lazada.android', // Lazada
   'my.boost.app', // Boost
   'com.themakecompany.mymaybank.mae', // MAE
   'com.bigpay', // BigPay
@@ -88,6 +91,7 @@ const CNY_APP = new Set([
   'com.spdb', // SPD Bank
   'cn.com.modernbank.payment',
   'com.citicbank',
+  'com.xunmeng.pinduoduo', // Pinduoduo (拼多多, CN e-commerce — CNY payments)
 ]);
 
 export function appHintFor(pkg: string): AppHint | undefined {

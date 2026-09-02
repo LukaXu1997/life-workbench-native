@@ -1,15 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android" xmlns:tools="http://schemas.android.com/tools">
   <uses-permission android:name="android.permission.INTERNET"/>
   <uses-permission android:name="android.permission.VIBRATE"/>
-  <!-- Exact-alarm permission: required on Android 12+ (esp. 15/SDK 37) for expo-notifications
-       to use AlarmManager.setExactAndAllowWhileIdle. Without it the scheduled reminder is
-       degraded to a non-exact alarm and often never fires on time. USE_EXACT_ALARM is granted
-       automatically by the system (ideal for reminder-type apps); SCHEDULE_EXACT_ALARM is the
-       explicit counterpart. Both declared for cross-version safety. -->
+  <!-- Exact-alarm permission: required on Android 12+ for expo-notifications to use
+       AlarmManager.setExactAndAllowWhileIdle so scheduled reminders fire on time. -->
   <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
-  <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
-  <!-- Gallery image picker: scoped READ_MEDIA_IMAGES covers Android 13+. Pixel uses the system photo picker (no permission needed). -->
-  <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+  <!-- Avatar/gallery picks use the Android 13+ system Photo Picker (no storage permission);
+       TnG OCR receives a shared screenshot via a content URI (also no permission). -->
   <!-- Imports use the system document picker; broad legacy storage access is unnecessary. -->
   <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove"/>
   <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" tools:node="remove"/>
@@ -36,6 +32,14 @@
         <action android:name="android.service.notification.NotificationListenerService"/>
       </intent-filter>
     </service>
+    <!-- Real-time TnG payment capture via AccessibilityService (reads success-screen text only).
+         Enabled by the user in system Accessibility settings; gated by NotifyConfig.isCaptureAllowed. -->
+    <service android:name=".notify.TxnCaptureService" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" android:exported="false">
+      <intent-filter>
+        <action android:name="android.accessibilityservice.AccessibilityService"/>
+      </intent-filter>
+      <meta-data android:name="android.accessibilityservice" android:resource="@xml/txn_capture_service"/>
+    </service>
     <activity android:name=".MainActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode|locale|layoutDirection" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize" android:theme="@style/Theme.App.SplashScreen" android:exported="true" android:screenOrientation="portrait">
       <intent-filter>
         <action android:name="android.intent.action.MAIN"/>
@@ -52,6 +56,11 @@
         <action android:name="android.intent.action.SEND"/>
         <category android:name="android.intent.category.DEFAULT"/>
         <data android:mimeType="text/plain"/>
+      </intent-filter>
+      <intent-filter>
+        <action android:name="android.intent.action.SEND"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <data android:mimeType="image/*"/>
       </intent-filter>
       <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts"/>
     </activity>

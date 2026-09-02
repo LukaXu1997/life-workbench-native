@@ -1,8 +1,11 @@
 package com.luka.lifeworkbench.notify
 
+import android.accessibilityservice.AccessibilityServiceInfo
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.provider.Settings
+import android.view.accessibility.AccessibilityManager
 import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
@@ -40,6 +43,55 @@ class NotifyModule(private val reactContext: ReactApplicationContext) :
     fun openSettings() {
         try {
             val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            reactContext.startActivity(intent)
+        } catch (_: Exception) {
+            // No-op if settings cannot be opened.
+        }
+    }
+
+    /**
+     * Whether the user has granted this app the AccessibilityService permission for
+     * real-time TnG capture (TxnCaptureService). Reflects the OS grant state, not the
+     * in-app toggle — the in-app toggle only requests; this reports the actual grant.
+     */
+    @ReactMethod
+    fun isTxnCaptureEnabled(promise: Promise) {
+        try {
+            val comp = ComponentName(reactContext.packageName, TxnCaptureService::class.java.name)
+            // Ground-truth check: the OS stores the enabled accessibility services as a
+            // colon-separated list of flattened component names in Secure settings. The
+            // entries use the SHORT form (pkg/.ServiceName), so we compare via ComponentName
+            // (which normalizes both short and long forms) rather than raw string equality.
+            val flat = Settings.Secure.getString(
+                reactContext.contentResolver,
+                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+            ) ?: ""
+            val bySetting = flat.split(":").any { entry ->
+                val c = ComponentName.unflattenFromString(entry)
+                c != null && c == comp
+            }
+            // Secondary check via the AccessibilityManager API (resolveInfo is the canonical
+            // ComponentName and avoids the short/long flatten ambiguity of AccessibilityServiceInfo.id).
+            val am = reactContext.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager
+            val byManager = am
+                ?.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_ALL_MASK)
+                ?.any {
+                    val si = it.resolveInfo?.serviceInfo
+                    si != null && ComponentName(si.packageName, si.name) == comp
+                }
+                ?: false
+            promise.resolve(if (bySetting || byManager) 1 else 0)
+        } catch (_: Exception) {
+            promise.resolve(0)
+        }
+    }
+
+    /** Open the system accessibility settings page (user-initiated only). */
+    @ReactMethod
+    fun openAccessibilitySettings() {
+        try {
+            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             reactContext.startActivity(intent)
         } catch (_: Exception) {

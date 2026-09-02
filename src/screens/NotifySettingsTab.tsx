@@ -12,6 +12,9 @@ import {
   setNotifySettings,
   notifyListenerEnabled,
   openNotificationSettings,
+  tngCaptureEnabled,
+  openTxnCaptureSettings,
+  TXN_CAPTURE_PACKAGES,
   usePendingCount,
 } from '../notify/pendingStore';
 import { clearPending } from '../notify/confirmStore';
@@ -38,28 +41,34 @@ export default function NotifySettingsTab() {
 
   const [s, setS] = useState<NotifySettings | null>(null);
   const [permOn, setPermOn] = useState(false);
+  const [captureOn, setCaptureOn] = useState(false);
   const [rate, setRate] = useState('1.65');
   const [confText, setConfText] = useState('0.4');
 
   useEffect(() => {
     let alive = true;
     const load = async () => {
-      const [settings, fxRate, perm] = await Promise.all([
+      const [settings, fxRate, perm, capture] = await Promise.all([
         getNotifySettings(),
         store.getFxRate(),
         notifyListenerEnabled(),
+        tngCaptureEnabled(),
       ]);
       if (!alive) return;
       setS(settings);
       setRate(String(fxRate));
       setConfText(String(settings.confidenceFloor));
       setPermOn(perm);
+      setCaptureOn(capture);
     };
     load();
     // Re-check OS permission whenever the app returns to the foreground (e.g. after the
     // user granted/revoked access in system settings and came back).
     const sub = AppState.addEventListener('change', (st) => {
-      if (st === 'active') notifyListenerEnabled().then((p) => alive && setPermOn(p));
+      if (st === 'active') {
+        notifyListenerEnabled().then((p) => alive && setPermOn(p));
+        tngCaptureEnabled().then((c) => alive && setCaptureOn(c));
+      }
     });
     return () => {
       alive = false;
@@ -76,6 +85,23 @@ export default function NotifySettingsTab() {
 
   const toggleEnabled = (v: boolean) => {
     update({ enabled: v });
+    // Do NOT auto-open system settings. The user must tap the grant button explicitly.
+  };
+
+  const toggleTngCapture = (v: boolean) => {
+    if (!s) return;
+    // Ensure every supported capture package is in the allowlist so the
+    // accessibility captureAllowlist (sent to native) includes them all — TnG, Grab,
+    // Shopee, Lazada, Boost, MAE, BigPay, and Pinduoduo (拼多多, CNY). (Harmless to
+    // also add them to the notification listener: these apps post no payment
+    // notification anyway.)
+    let allowlist = s.allowlist;
+    if (v) {
+      for (const pkg of TXN_CAPTURE_PACKAGES) {
+        if (!allowlist.includes(pkg)) allowlist = [...allowlist, pkg];
+      }
+    }
+    update({ tngCapture: v, allowlist });
     // Do NOT auto-open system settings. The user must tap the grant button explicitly.
   };
 
@@ -306,6 +332,101 @@ export default function NotifySettingsTab() {
           </View>
         </>
       ) : null}
+
+      {/* TnG real-time capture (AccessibilityService primary + OCR screenshot fallback) */}
+      <View
+        style={{
+          marginTop: 16,
+          paddingTop: 14,
+          borderTopWidth: 1,
+          borderColor: theme.divider,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <IconTile bg={theme.primaryContainer} color={theme.onPrimaryContainer}>
+            <Icon name={ICONS.creditCard} size={18} color={theme.onPrimaryContainer} />
+          </IconTile>
+          <M3Text role="titleMedium">{t('settings.tngCapture')}</M3Text>
+        </View>
+        <M3Text role="labelMedium" color={theme.onSurfaceVariant} style={{ marginBottom: 12 }}>
+          {t('settings.tngCaptureHint')}
+        </M3Text>
+
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingVertical: 6,
+          }}
+        >
+          <M3Text role="bodyLarge">{t('settings.tngCapture')}</M3Text>
+          <Switch
+            value={!!s.tngCapture}
+            onValueChange={toggleTngCapture}
+            accessibilityLabel={t('settings.tngCapture')}
+          />
+        </View>
+
+        {s.tngCapture ? (
+          captureOn ? (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 10,
+                marginTop: 8,
+                padding: 12,
+                borderRadius: radius.md,
+                backgroundColor: theme.successContainer,
+              }}
+            >
+              <Icon name={ICONS.check} size={20} color={theme.onSuccessContainer} />
+              <M3Text role="labelMedium" color={theme.onSuccessContainer} style={{ flex: 1 }}>
+                {t('settings.tngCaptureOn')}
+              </M3Text>
+              <IconButton
+                name={ICONS.settings}
+                size={18}
+                color={theme.onSuccessContainer}
+                onPress={openTxnCaptureSettings}
+                accessibilityLabel={t('settings.tngCaptureOpenSettings')}
+              />
+            </View>
+          ) : (
+            <View
+              style={{
+                marginTop: 8,
+                padding: 12,
+                borderRadius: radius.md,
+                backgroundColor: theme.errorContainer,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Icon name={ICONS.warning} size={20} color={theme.onErrorContainer} />
+                <View style={{ flex: 1 }}>
+                  <M3Text role="labelMedium" color={theme.onErrorContainer}>
+                    {t('settings.tngCaptureOff')}
+                  </M3Text>
+                </View>
+                <Button
+                  label={t('settings.tngCaptureOpenSettings')}
+                  variant="primary"
+                  onPress={openTxnCaptureSettings}
+                  style={{ paddingHorizontal: 12 }}
+                />
+              </View>
+              <M3Text
+                role="labelSmall"
+                color={theme.onErrorContainer}
+                style={{ marginTop: 8, lineHeight: 18 }}
+              >
+                {t('settings.tngCaptureManualHint')}
+              </M3Text>
+            </View>
+          )
+        ) : null}
+      </View>
 
       {/* Privacy note */}
       <View style={{ marginTop: 16, paddingTop: 14, borderTopWidth: 1, borderColor: theme.divider }}>

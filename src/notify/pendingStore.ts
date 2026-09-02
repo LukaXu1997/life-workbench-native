@@ -19,6 +19,8 @@ import {
   onNotifyReceived,
   openNotifySettings,
   setNotifyConfig,
+  isTxnCaptureEnabled,
+  openAccessibilitySettings,
 } from './NativeNotifyModule';
 import { ingestEnvelope } from './ingest';
 import { CNY_CARD_APPS } from './parsers';
@@ -27,8 +29,26 @@ import type { NotifyEnvelope } from './types';
 const PENDING_KEY = 'wb_life_pending';
 const NOTIFY_SETTINGS_KEY = 'wb_life_notify_settings';
 
+// Full set of packages the real-time capture (Accessibility + OCR) reads. Mixes
+// MYR e-wallets (TnG / Grab / Shopee / Lazada / Boost / MAE / BigPay) and CN apps
+// (Pinduoduo) whose payment-success screens carry a ¥ amount. Kept in sync with
+// EWALLET (MYR) / CNY_APP (CN) in notify/parsers.ts. Grab's real package is
+// com.grabtaxi.passenger; Lazada is com.lazada.android.
+export const TXN_CAPTURE_PACKAGES = [
+  'com.tngdigital.wallet',
+  'my.com.tngdigital.ewallet',
+  'com.grabtaxi',
+  'com.grabtaxi.passenger',
+  'com.shopee.my',
+  'com.lazada.android',
+  'my.boost.app',
+  'com.themakecompany.mymaybank.mae',
+  'com.bigpay',
+  'com.xunmeng.pinduoduo', // Pinduoduo (拼多多) — CNY payments via ¥
+];
+
 export function defaultNotifySettings(): NotifySettings {
-  return { enabled: false, paused: false, allowlist: [], confidenceFloor: 0.4 };
+  return { enabled: false, paused: false, allowlist: [], confidenceFloor: 0.4, tngCapture: false };
 }
 
 /* ---------------------------------- read/write pending -------------------------- */
@@ -97,6 +117,11 @@ export function applyNotifyConfig(s: NotifySettings): void {
     enabled: s.enabled && s.allowlist.length > 0,
     paused: s.paused,
     allowlist: s.allowlist,
+    // TnG real-time capture runs on its own toggle, independent of the notification
+    // listener's pause. The accessibility service only reads packages the user
+    // selected for capture (here: TnG when the toggle is on).
+    captureEnabled: !!s.tngCapture && s.allowlist.some((p) => TXN_CAPTURE_PACKAGES.includes(p)),
+    captureAllowlist: s.tngCapture ? TXN_CAPTURE_PACKAGES : [],
   });
 }
 
@@ -108,6 +133,16 @@ export function notifyListenerEnabled(): Promise<boolean> {
 /** Open the system notification-access settings (must be a user-initiated call). */
 export function openNotificationSettings(): void {
   openNotifySettings();
+}
+
+/** Whether the OS has granted the AccessibilityService permission for TnG capture. */
+export function tngCaptureEnabled(): Promise<boolean> {
+  return isTxnCaptureEnabled();
+}
+
+/** Open the system accessibility settings (must be a user-initiated call). */
+export function openTxnCaptureSettings(): void {
+  openAccessibilitySettings();
 }
 
 /* --------------------------- ingest (notification -> pending) ----------------- */

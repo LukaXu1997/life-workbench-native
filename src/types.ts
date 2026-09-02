@@ -253,6 +253,7 @@ export interface NotifySettings {
   allowlist: string[]; // package names allowed to be recognized
   confidenceFloor: number; // 0..1; below this -> needsReview
   fxOverride?: number; // optional manual cnyPerMyr override used for predicted settle
+  tngCapture?: boolean; // real-time TnG capture via AccessibilityService + OCR fallback
 }
 
 // The encrypted backup payload (matches PWA export shape + extras).

@@ -28,7 +28,7 @@ import DataAndSecurityScreen from './src/screens/me/DataAndSecurityScreen';
 import AboutScreen from './src/screens/me/AboutScreen';
 import { AppTabBar } from './src/components/AppTabBar';
 import { NotifyNavProvider, useNotifyNav } from './src/notify/NotifyNav';
-import { ensureReceiverStarted, startNotifyReceiver } from './src/notify/pendingStore';
+import { ensureReceiverStarted, startNotifyReceiver, getNotifySettings, applyNotifyConfig } from './src/notify/pendingStore';
 import { parseQuickAddUrl, parseSharedText } from './src/notify/quickAdd';
 import { getPendingQuickAddUrl, getPendingShare } from './src/notify/NativeQuickAdd';
 import { navRef } from './src/navigationRef';
@@ -238,6 +238,10 @@ function Root() {
   // Start notification receiver and drain durable queue on foreground return.
   useEffect(() => {
     const off = ensureReceiverStarted();
+    // Push the persisted notify config (incl. TnG real-time capture) down to native so
+    // the AccessibilityService is active immediately after a cold launch, not only after
+    // the user re-opens settings.
+    getNotifySettings().then(applyNotifyConfig).catch(() => {});
     routePendingIntents();
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {

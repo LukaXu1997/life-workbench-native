@@ -20,8 +20,11 @@ import { store } from './store';
 import type { Task, Habit } from './types';
 import { t } from './i18n';
 
-const CHANNEL_TASK = 'task-reminders';
-const CHANNEL_HABIT = 'habit-reminders';
+// V2.13.4: bump channel IDs so Android recreates them WITH a sound.
+// (Android notification-channel settings are immutable after first creation,
+//  so the old silent `task-reminders` channel can never be fixed in place.)
+const CHANNEL_TASK = 'task-reminders-v2';
+const CHANNEL_HABIT = 'habit-reminders-v2';
 
 /** Lead-time options (minutes before the task time) offered in the UI. */
 export const LEAD_OPTIONS = [0, 15, 30, 60, 120, 180, 1440] as const;
@@ -55,12 +58,17 @@ export async function ensureNotificationChannels(): Promise<void> {
     await Notifications.setNotificationChannelAsync(CHANNEL_TASK, {
       name: t('plan.reminder'),
       importance: Notifications.AndroidImportance.MAX,
+      // V2.13.4: explicit sound + ALARM usage so the reminder actually rings.
+      sound: 'default',
+      audioAttributes: { usage: Notifications.AndroidAudioUsage.ALARM },
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#5B8DEF',
     });
     await Notifications.setNotificationChannelAsync(CHANNEL_HABIT, {
       name: t('plan.habitReminder'),
       importance: Notifications.AndroidImportance.MAX,
+      sound: 'default',
+      audioAttributes: { usage: Notifications.AndroidAudioUsage.ALARM },
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#34C759',
     });
@@ -76,7 +84,7 @@ export function ensureNotificationHandler(): void {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowAlert: true,
-      shouldPlaySound: false,
+      shouldPlaySound: true,
       shouldSetBadge: false,
     }),
   });
@@ -118,6 +126,7 @@ export async function scheduleTaskReminder(task: Task): Promise<boolean> {
       content: {
         title,
         body: t('plan.reminderTimeLead', { time: when, lead }),
+        sound: 'default',
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -153,6 +162,7 @@ export async function scheduleHabitReminder(habit: Habit): Promise<boolean> {
       content: {
         title: habit.name,
         body: t('plan.habitReminderBody'),
+        sound: 'default',
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DAILY,

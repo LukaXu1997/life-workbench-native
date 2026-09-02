@@ -9,7 +9,10 @@ import org.json.JSONObject
  * Captures notifications from user-allowlisted payment apps ONLY.
  *
  * Privacy boundaries (per design):
- *  - Never reads other apps' UIs (no AccessibilityService).
+ *  - This listener never reads other apps' UIs (no AccessibilityService here).
+ *    The separate TxnCaptureService provides Accessibility-based capture for apps
+ *    like Touch 'n Go that post NO payment notification; both services share the
+ *    same NotifyConfig gating + NotifyEnvelope format + transient queue.
  *  - Never touches the clipboard.
  *  - Never uses an overlay to watch payments.
  *  - Reads only title/text/bigText extras; drops everything else in memory.
