@@ -1588,6 +1588,7 @@ function ScheduleForm({ today, onClose }: { today: string; onClose: () => void }
   // 提醒（V2.13.0）：相对提前量，仅创建时设置
   const [reminderOn, setReminderOn] = useState(false);
   const [reminderLead, setReminderLead] = useState<number>(30); // 提前分钟数
+  const [showLeadPicker, setShowLeadPicker] = useState(false); // 内联下拉面板
   const titleRef = useRef<TextInput>(null);
   const titleValid = canSubmitSchedule(title);
   const reminderInPast =
@@ -1675,6 +1676,7 @@ function ScheduleForm({ today, onClose }: { today: string; onClose: () => void }
                 if (!time) setTime('09:00'); // 无时间则默认 09:00，仍可改
                 setReminderLead(30);
               }
+              setShowLeadPicker(false);
               setReminderOn(v);
             }}
             trackColor={{ false: theme.divider, true: theme.primaryContainer }}
@@ -1684,27 +1686,37 @@ function ScheduleForm({ today, onClose }: { today: string; onClose: () => void }
         </View>
         {reminderOn && (
           <>
-            <M3Text role="labelSmall" color={theme.onSurfaceVariant} style={{ marginTop: 8 }}>{t('plan.reminderLead')}</M3Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
-              {LEAD_OPTIONS.map((opt) => (
-                <TouchableOpacity
-                  key={opt}
-                  onPress={() => setReminderLead(opt)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: reminderLead === opt }}
-                  style={{
-                    paddingVertical: 8,
-                    paddingHorizontal: 14,
-                    borderRadius: radius.md,
-                    backgroundColor: reminderLead === opt ? theme.primary : theme.surfaceContainer,
-                  }}
-                >
-                  <M3Text role="labelLarge" color={reminderLead === opt ? theme.onPrimary : theme.onSurfaceVariant}>
-                    {leadLabel(opt)}
-                  </M3Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <TouchableOpacity
+              onPress={() => setShowLeadPicker((v) => !v)}
+              accessibilityRole="button"
+              accessibilityLabel={t('plan.reminderLead')}
+              style={[fieldStyle, { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }]}
+            >
+              <View>
+                <M3Text role="labelMedium" color={theme.onSurfaceVariant}>{t('plan.reminderLead')}</M3Text>
+                <M3Text role="bodyLarge" color={theme.onSurface} style={{ marginTop: 2 }}>{leadLabel(reminderLead)}</M3Text>
+              </View>
+              <Icon name={showLeadPicker ? ICONS.chevronUp : ICONS.chevronDown} size={18} color={theme.onSurfaceVariant} />
+            </TouchableOpacity>
+            {showLeadPicker && (
+              <View style={{ marginTop: 6, paddingVertical: 4, borderWidth: StyleSheet.hairlineWidth, borderColor: theme.divider, borderRadius: radius.md, backgroundColor: theme.surfaceContainer }}>
+                {LEAD_OPTIONS.map((opt) => {
+                  const selected = reminderLead === opt;
+                  return (
+                    <TouchableOpacity
+                      key={opt}
+                      onPress={() => { setReminderLead(opt); setShowLeadPicker(false); }}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                      style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 11, paddingHorizontal: 14 }}
+                    >
+                      <M3Text role="bodyLarge" color={selected ? theme.primary : theme.onSurface}>{leadLabel(opt)}</M3Text>
+                      {selected && <Icon name={ICONS.check} size={18} color={theme.primary} />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
             <M3Text role="labelSmall" color={theme.onSurfaceVariant} style={{ marginTop: 8 }}>{t('plan.reminderHint')}</M3Text>
             {reminderInPast && (
               <M3Text role="labelMedium" color={theme.error} style={{ marginTop: 4 }}>{t('plan.reminderPast')}</M3Text>

@@ -8,7 +8,7 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 13, PATCH: 0 } as const;
+export const APP_VERSION = { MAJOR: 2, MINOR: 13, PATCH: 1 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.13.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.13.0"
@@ -19,7 +19,14 @@ export const BUILD_DATE = '2026-09-02';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.13.0 — 2026-09-02
+export const RELEASE_NOTES = `V2.13.1 — 2026-09-02
+提醒提前量选择器改为内联下拉（纯 UI 打磨，不改逻辑与 SCHEMA_VERSION）：
+
+· 任务表单「提醒提前量」由 7 个换行 chip 改为与「日期/时间」同款的单行可点击字段，点按就地展开内联下拉面板（准时/15分钟前/30分钟前/1小时前/2小时前/3小时前/1天前），选中后收起
+· 视觉收敛：消除 chip 占用多行导致的表单纵向膨胀，与日期/时间字段风格统一（少边框、留白充足）
+· 新增 chevronUp 图标（MaterialCommunityIcons），下拉开合箭头方向正确
+
+V2.13.0 — 2026-09-02
 提醒升级：相对提前量 + 习惯每日提醒（功能小版本，复用 expo-notifications，SCHEMA_VERSION 仍为 2）：
 
 · 任务提醒改为「相对提前量」：开启后从 准时 / 15分钟前 / 30分钟前 / 1小时前 / 2小时前 / 3小时前 / 1天前 中选择，实际提醒时刻 = 任务时间 − 提前量（运行时计算）

@@ -53,6 +53,7 @@ export const ICONS = {
   chevronRight: 'chevron-right',
   chevronLeft: 'chevron-left',
   chevronDown: 'chevron-down',
+  chevronUp: 'chevron-up',
   server: 'server-outline',        // 云备份连接配置
   back: 'arrow-left',
   close: 'close',
