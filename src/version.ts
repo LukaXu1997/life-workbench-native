@@ -8,7 +8,7 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 6, PATCH: 5 } as const;
+export const APP_VERSION = { MAJOR: 2, MINOR: 7, PATCH: 0 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.0.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.0.0"
@@ -19,7 +19,19 @@ export const BUILD_DATE = '2026-08-30';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.6.5 — 2026-09-02
+export const RELEASE_NOTES = `V2.7.0 — 2026-08-30
+任务子任务（功能小版本，零新增依赖）：
+
+· 任务支持子任务（SubTask）：每个 Task 可挂载任意数量子项，复用现有 48dp 勾选圈（CheckCircle，新增 size 可选，子任务用 32dp）
+· 勾选行（TaskRow）新增「子任务进度」展示：有子任务时显示 已完成/总数（如 2/5）并附 chevron 折叠/展开按钮；展开后内嵌子任务列表
+· 子任务列表（SubTaskList）：每项 32dp 勾选圈 + 标题 + 删除按钮；行末「+」行内嵌 TextInput 添加子任务（自动聚焦，回车提交，失焦空输入取消）
+· 子任务通过 store.setTasks 写入，复用 useData 的 onChange 自动刷新，无需手动同步状态
+· 父子解耦：父任务完成态独立，子任务勾选不级联父任务（明确设计取舍，避免误标完成）
+· 同时覆盖 TodoSub（待办）与 CalendarSub（日历日详情）两个入口，共享 TaskRow，体验一致
+· 全量 CN/EN i18n：subtasks / subtaskProgress / addSubtask / 增删提示等 9 条文案
+· 纯数据扩展：Task.subtasks 为可选字段，旧数据无该字段仍正常（向后兼容），未改动 SCHEMA_VERSION（仍为 2）
+
+V2.6.5 — 2026-09-02
 深色模式原生层精修（纯视觉/原生资源层，不动逻辑与 SCHEMA_VERSION）：
 
 · 新增 values-night/colors.xml：splashscreen_background → #191919（对齐 theme.bg 深色），消除深色模式下 App 启动时的白屏闪

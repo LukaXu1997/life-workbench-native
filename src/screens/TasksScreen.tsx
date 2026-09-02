@@ -31,7 +31,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { radius, space, pageMargin, touchMin } from '../tokens';
 import { useBottomContentInset } from '../components/layout';
 import { AppBottomSheet } from '../components/anim';
-import type { Task, Habit, ShopItem, Priority, HabitType, ShopPriority, Currency } from '../types';
+import type { Task, SubTask, Habit, ShopItem, Priority, HabitType, ShopPriority, Currency } from '../types';
 import {
   shouldShowAddFab,
   classifySchedule,
@@ -161,6 +161,28 @@ export default function TasksScreen() {
     await store.setTasks(prev.filter((x) => x.id !== t2.id));
     showUndo(t('plan.deletedTask'), async () => { await store.setTasks(prev); });
   };
+
+  // ——— 子任务（Subtasks）：纯派生字段，向后兼容，不动 SCHEMA ———
+  const setTaskSubtasks = async (
+    taskId: string,
+    mutate: (subs: SubTask[]) => SubTask[],
+    undoMsg: string,
+  ) => {
+    const prev = await store.getTasks();
+    const next = prev.map((x) => (x.id === taskId ? { ...x, subtasks: mutate(x.subtasks || []) } : x));
+    await store.setTasks(next);
+    showUndo(undoMsg, async () => { await store.setTasks(prev); });
+  };
+  const toggleSubtask = (task: Task, subId: string) =>
+    setTaskSubtasks(
+      task.id,
+      (subs) => subs.map((s) => (s.id === subId ? { ...s, done: !s.done } : s)),
+      task.subtasks?.find((s) => s.id === subId)?.done ? t('plan.markSubUndone') : t('plan.markSubDone'),
+    );
+  const addSubtask = (task: Task, title: string) =>
+    setTaskSubtasks(task.id, (subs) => [...subs, { id: uid('st'), title, done: false }], t('plan.addedSubtask'));
+  const deleteSubtask = (task: Task, subId: string) =>
+    setTaskSubtasks(task.id, (subs) => subs.filter((s) => s.id !== subId), t('plan.deletedSubtask'));
   const deleteHabit = async (h: Habit) => {
     const prev = await store.getHabits();
     await store.setHabits(prev.filter((x) => x.id !== h.id));
@@ -227,6 +249,9 @@ export default function TasksScreen() {
           onToggle={toggleTask}
           onDelete={deleteTask}
           confirmDelete={confirmDelete}
+          onToggleSubtask={toggleSubtask}
+          onAddSubtask={addSubtask}
+          onDeleteSubtask={deleteSubtask}
           bottomInset={bottomInset}
         />
       )}
@@ -264,6 +289,9 @@ export default function TasksScreen() {
           onToggleHabit={toggleHabit}
           onDeleteHabit={deleteHabit}
           confirmDelete={confirmDelete}
+          onToggleSubtask={toggleSubtask}
+          onAddSubtask={addSubtask}
+          onDeleteSubtask={deleteSubtask}
           bottomInset={bottomInset}
         />
       )}
@@ -309,21 +337,25 @@ function CheckCircle({
   onToggle,
   a11y,
   theme,
+  size = 48,
 }: {
   checked: boolean;
   onToggle: () => void;
   a11y: string;
   theme: any;
+  size?: number;
 }) {
+  const iconSize = Math.round(size * 0.46);
   return (
     <TouchableOpacity
       onPress={onToggle}
       accessibilityRole="button"
       accessibilityLabel={a11y}
+      hitSlop={8}
       style={{
-        width: 48,
-        height: 48,
-        borderRadius: 24,
+        width: size,
+        height: size,
+        borderRadius: size / 2,
         backgroundColor: checked ? theme.primaryContainer : theme.surfaceContainer,
         alignItems: 'center',
         justifyContent: 'center',
@@ -331,7 +363,7 @@ function CheckCircle({
     >
       <Icon
         name={checked ? ICONS.check : 'checkbox-blank-circle-outline'}
-        size={22}
+        size={iconSize}
         color={checked ? theme.onPrimaryContainer : theme.onSurfaceVariant}
       />
     </TouchableOpacity>
@@ -353,6 +385,9 @@ function TodoSub({
   onToggle,
   onDelete,
   confirmDelete,
+  onToggleSubtask,
+  onAddSubtask,
+  onDeleteSubtask,
   bottomInset,
 }: {
   tasks: Task[];
@@ -360,6 +395,9 @@ function TodoSub({
   onToggle: (t: Task) => void;
   onDelete: (t: Task) => void;
   confirmDelete: (name: string, fn: () => void) => void;
+  onToggleSubtask: (task: Task, subId: string) => void;
+  onAddSubtask: (task: Task, title: string) => void;
+  onDeleteSubtask: (task: Task, subId: string) => void;
   bottomInset: number;
 }) {
   const { theme } = useTheme();
@@ -403,7 +441,7 @@ function TodoSub({
             </View>
           );
         }
-        if (item.kind === 'task') return <TaskRow task={item.task} onToggle={onToggle} onDelete={onDelete} confirmDelete={confirmDelete} />;
+        if (item.kind === 'task') return <TaskRow task={item.task} onToggle={onToggle} onDelete={onDelete} confirmDelete={confirmDelete} onToggleSubtask={onToggleSubtask} onAddSubtask={onAddSubtask} onDeleteSubtask={onDeleteSubtask} />;
         return null;
       }}
       contentContainerStyle={{ paddingHorizontal: pageMargin, paddingTop: space.sm, paddingBottom: bottomInset }}
@@ -476,6 +514,9 @@ function CalendarSub({
   onToggleHabit,
   onDeleteHabit,
   confirmDelete,
+  onToggleSubtask,
+  onAddSubtask,
+  onDeleteSubtask,
   bottomInset,
 }: {
   tasks: Task[];
@@ -486,6 +527,9 @@ function CalendarSub({
   onToggleHabit: (h: Habit) => void;
   onDeleteHabit: (h: Habit) => void;
   confirmDelete: (name: string, fn: () => void) => void;
+  onToggleSubtask: (task: Task, subId: string) => void;
+  onAddSubtask: (task: Task, title: string) => void;
+  onDeleteSubtask: (task: Task, subId: string) => void;
   bottomInset: number;
 }) {
   const { theme } = useTheme();
@@ -606,7 +650,16 @@ function CalendarSub({
         <SectionLabel text={t('plan.calTasksOnDay')} icon={ICONS.calendar} />
         {selHasTasks ? (
           selList.map((task) => (
-            <TaskRow key={task.id} task={task} onToggle={onToggle} onDelete={onDelete} confirmDelete={confirmDelete} />
+            <TaskRow
+              key={task.id}
+              task={task}
+              onToggle={onToggle}
+              onDelete={onDelete}
+              confirmDelete={confirmDelete}
+              onToggleSubtask={onToggleSubtask}
+              onAddSubtask={onAddSubtask}
+              onDeleteSubtask={onDeleteSubtask}
+            />
           ))
         ) : (
           <View style={{ marginTop: space.md }}>
@@ -647,55 +700,170 @@ function SectionLabel({ text, icon }: { text: string; icon?: string }) {
   );
 }
 
+function SubTaskList({
+  task,
+  onToggleSubtask,
+  onAddSubtask,
+  onDeleteSubtask,
+}: {
+  task: Task;
+  onToggleSubtask: (task: Task, subId: string) => void;
+  onAddSubtask: (task: Task, title: string) => void;
+  onDeleteSubtask: (task: Task, subId: string) => void;
+}) {
+  const { theme } = useTheme();
+  const { t } = useI18n();
+  const [adding, setAdding] = useState(false);
+  const [text, setText] = useState('');
+  const subs = task.subtasks || [];
+  return (
+    <View style={{ paddingLeft: 48 + space.md, paddingBottom: space.sm }}>
+      {subs.map((s) => (
+        <View key={s.id} style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 40 }}>
+          <CheckCircle
+            checked={s.done}
+            size={32}
+            onToggle={() => onToggleSubtask(task, s.id)}
+            a11y={s.done ? t('plan.markSubUndone') : t('plan.markSubDone')}
+            theme={theme}
+          />
+          <M3Text
+            role="bodyMedium"
+            numberOfLines={1}
+            style={[s.done && { textDecorationLine: 'line-through', color: theme.onSurfaceVariant }, { flex: 1 }]}
+          >
+            {s.title}
+          </M3Text>
+          <IconButton
+            name={ICONS.delete}
+            color={theme.onSurfaceVariant}
+            onPress={() => onDeleteSubtask(task, s.id)}
+            accessibilityLabel={t('plan.deleteSubtaskA11y', { name: s.title })}
+          />
+        </View>
+      ))}
+      {adding ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 40 }}>
+          <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: theme.surfaceContainer }} />
+          <TextInput
+            value={text}
+            onChangeText={setText}
+            placeholder={t('plan.subtaskPlaceholder')}
+            placeholderTextColor={theme.onSurfaceVariant}
+            style={{ flex: 1, color: theme.onSurface, fontSize: 15 }}
+            autoFocus
+            onSubmitEditing={() => {
+              const v = text.trim();
+              if (v) {
+                onAddSubtask(task, v);
+                setText('');
+                setAdding(false);
+              }
+            }}
+            onBlur={() => {
+              if (!text.trim()) setAdding(false);
+            }}
+          />
+        </View>
+      ) : (
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => setAdding(true)}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 40 }}
+        >
+          <Icon name={ICONS.add} size={20} color={theme.onSurfaceVariant} />
+          <M3Text role="labelMedium" color={theme.onSurfaceVariant}>
+            {t('plan.addSubtask')}
+          </M3Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+}
+
 function TaskRow({
   task,
   onToggle,
   onDelete,
   confirmDelete,
+  onToggleSubtask,
+  onAddSubtask,
+  onDeleteSubtask,
 }: {
   task: Task;
   onToggle: (t: Task) => void;
   onDelete: (t: Task) => void;
   confirmDelete: (name: string, fn: () => void) => void;
+  onToggleSubtask: (task: Task, subId: string) => void;
+  onAddSubtask: (task: Task, title: string) => void;
+  onDeleteSubtask: (task: Task, subId: string) => void;
 }) {
   const { theme } = useTheme();
   const { t } = useI18n();
+  const [expanded, setExpanded] = useState(false);
+  const subs = task.subtasks || [];
+  const done = subs.filter((s) => s.done).length;
+  const total = subs.length;
+  const hasSubs = total > 0;
   return (
-    <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: space.md,
-        minHeight: 56,
-        paddingVertical: space.sm,
-      }}
-    >
-      <CheckCircle checked={task.completed} onToggle={() => onToggle(task)} a11y={task.completed ? t('plan.markUndone') : t('plan.markDone')} theme={theme} />
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <M3Text
-          role="bodyLarge"
-          numberOfLines={1}
-          style={task.completed ? { textDecorationLine: 'line-through', color: theme.onSurfaceVariant } : undefined}
-        >
-          {task.title}
-        </M3Text>
-        <M3Text role="labelSmall" color={theme.onSurfaceVariant} numberOfLines={1}>
-          {`${task.time || t('plan.noTime')} · ${task.category}`}
-        </M3Text>
+    <View>
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: space.md,
+          minHeight: 56,
+          paddingVertical: space.sm,
+        }}
+      >
+        <CheckCircle checked={task.completed} onToggle={() => onToggle(task)} a11y={task.completed ? t('plan.markUndone') : t('plan.markDone')} theme={theme} />
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <M3Text
+            role="bodyLarge"
+            numberOfLines={1}
+            style={task.completed ? { textDecorationLine: 'line-through', color: theme.onSurfaceVariant } : undefined}
+          >
+            {task.title}
+          </M3Text>
+          <M3Text role="labelSmall" color={theme.onSurfaceVariant} numberOfLines={1}>
+            {`${task.time || t('plan.noTime')} · ${task.category}`}
+          </M3Text>
+        </View>
+        {hasSubs ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+            <M3Text role="labelSmall" color={theme.onSurfaceVariant}>
+              {t('plan.subtaskProgress', { done, total })}
+            </M3Text>
+            <IconButton
+              name={expanded ? ICONS.chevronDown : ICONS.chevronRight}
+              color={theme.onSurfaceVariant}
+              onPress={() => setExpanded((e) => !e)}
+              accessibilityLabel={t('plan.toggleSubtasks')}
+            />
+          </View>
+        ) : null}
+        {task.priority !== 'P2' ? (
+          <Badge
+            text={task.priority}
+            color={task.priority === 'P0' ? theme.onErrorContainer : theme.onWarningContainer}
+            bg={task.priority === 'P0' ? theme.errorContainer : theme.warningContainer}
+          />
+        ) : null}
+        <IconButton
+          name={ICONS.delete}
+          color={theme.onSurfaceVariant}
+          onPress={() => confirmDelete(task.title, () => onDelete(task))}
+          accessibilityLabel={t('plan.deleteA11y', { name: task.title })}
+        />
       </View>
-      {task.priority !== 'P2' ? (
-        <Badge
-          text={task.priority}
-          color={task.priority === 'P0' ? theme.onErrorContainer : theme.onWarningContainer}
-          bg={task.priority === 'P0' ? theme.errorContainer : theme.warningContainer}
+      {hasSubs && expanded ? (
+        <SubTaskList
+          task={task}
+          onToggleSubtask={onToggleSubtask}
+          onAddSubtask={onAddSubtask}
+          onDeleteSubtask={onDeleteSubtask}
         />
       ) : null}
-      <IconButton
-        name={ICONS.delete}
-        color={theme.onSurfaceVariant}
-        onPress={() => confirmDelete(task.title, () => onDelete(task))}
-        accessibilityLabel={t('plan.deleteA11y', { name: task.title })}
-      />
     </View>
   );
 }

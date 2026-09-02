@@ -114,6 +114,11 @@ export interface Habit {
 }
 
 export type Priority = 'P0' | 'P1' | 'P2';
+export interface SubTask {
+  id: string;
+  title: string;
+  done: boolean;
+}
 export interface Task {
   id: string;
   title: string;
@@ -124,6 +129,7 @@ export interface Task {
   note: string;
   completed: boolean;
   createdAt: number;
+  subtasks?: SubTask[]; // optional — backward compatible; absent = no subtasks
 }
 
 export type ShopPriority = '高' | '中' | '低';

@@ -2,7 +2,7 @@
   "expo": {
     "name": "生活工作台",
     "slug": "life-workbench",
-  "version": "2.6.5",
+  "version": "2.7.0",
   "orientation": "portrait",
   "scheme": "lifeworkbench",
   "userInterfaceStyle": "automatic",
@@ -10,7 +10,7 @@
   "icon": "./assets/icon.png",
   "android": {
     "package": "com.luka.lifeworkbench",
-    "versionCode": 20605,
+    "versionCode": 20700,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon-foreground.png",
         "backgroundColor": "#FFFFFF"
