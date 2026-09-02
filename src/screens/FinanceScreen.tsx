@@ -555,7 +555,7 @@ function OverviewTab({
                   }}
                 >
                   <MiniStat label={t('finance.inc')} value={s.income} cur={c} />
-                  <MiniStat label={t('finance.exp')} value={s.expense} cur={c} tone={theme.error} />
+                  <MiniStat label={t('finance.exp')} value={s.expense} cur={c} />
                 </View>
                 <View
                   style={{
@@ -579,31 +579,20 @@ function OverviewTab({
                   />
                 </View>
 
-                {/* A 储蓄率 + B 环比上月（纯派生，无存储改动） */}
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: space.sm,
-                    marginTop: space.sm,
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  <M3Text role="labelSmall" color={theme.onSurfaceVariant}>{t('finance.savingsRate')}</M3Text>
-                  <M3Text role="labelSmall" color={theme.onSurface} style={TNUM}>
-                    {s.income > 0 ? `${Math.round((net / s.income) * 100)}%` : '--'}
-                  </M3Text>
-                  {prevNet !== 0 ? (
-                    <>
-                      <M3Text role="labelSmall" color={theme.onSurfaceVariant} style={{ marginLeft: space.md }}>
-                        {t('finance.vsLastMonth')}
-                      </M3Text>
-                      <M3Text role="labelSmall" color={net >= prevNet ? theme.income : theme.error} style={TNUM}>
-                        {net >= prevNet ? '▲' : '▼'} {Math.abs(Math.round((net / prevNet - 1) * 100))}%
-                      </M3Text>
-                    </>
-                  ) : null}
-                </View>
+                {/* A 储蓄率 + B 环比上月（统一洞察条，纯派生，无存储改动） */}
+                <InsightRow
+                  label={t('finance.savingsRate')}
+                  value={s.income > 0 ? `${Math.round((net / s.income) * 100)}%` : '--'}
+                  style={{ marginTop: space.md }}
+                />
+                {prevNet !== 0 && (
+                  <InsightRow
+                    label={t('finance.vsLastMonth')}
+                    value={`${net >= prevNet ? '▲' : '▼'} ${Math.abs(Math.round((net / prevNet - 1) * 100))}%`}
+                    valueColor={net >= prevNet ? theme.income : theme.error}
+                    style={{ marginTop: space.sm }}
+                  />
+                )}
                 {(() => {
                   const rf = summary.stats.recurringIncomeExpense[c];
                   if (rf.income <= 0 && rf.expense <= 0) return null;
@@ -627,7 +616,7 @@ function OverviewTab({
                         }}
                       >
                         <MiniStat label={t('financeExtra.fixedInc')} value={rf.income} cur={c} />
-                        <MiniStat label={t('financeExtra.fixedExp')} value={rf.expense} cur={c} tone={theme.error} />
+                        <MiniStat label={t('financeExtra.fixedExp')} value={rf.expense} cur={c} />
                       </View>
                       <View
                         style={{
@@ -761,6 +750,34 @@ function Hairline({ my = space.lg }: { my?: number }) {
   );
 }
 
+/** 派生洞察条：左中性灰 caption + 右 tabular 值，纵向等距排列。
+ *  统一 储蓄率 / 环比上月 / 预算日均可用 三处的呈现，消除 inline flexWrap 窄屏断行参差。 */
+function InsightRow({
+  label,
+  value,
+  valueColor,
+  style,
+}: {
+  label: string;
+  value: string;
+  valueColor?: string;
+  style?: any;
+}) {
+  const { theme } = useTheme();
+  return (
+    <View
+      style={[{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.sm }, style]}
+    >
+      <M3Text role="labelMedium" color={theme.onSurfaceVariant} numberOfLines={1}>
+        {label}
+      </M3Text>
+      <M3Text role="labelMedium" color={valueColor ?? theme.onSurface} style={TNUM} numberOfLines={1}>
+        {value}
+      </M3Text>
+    </View>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* 概览 ③ 预算使用（双币种，点进「预算」档调整）                        */
 /* ------------------------------------------------------------------ */
@@ -837,20 +854,11 @@ function BudgetUsageCard({ d, ym, onGo }: { d: any; ym: string; onGo: (s: FSeg) 
                 </M3Text>
               </View>
               {isCurMonth && r.remain > 0 ? (
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: space.sm,
-                    marginTop: space.xs,
-                  }}
-                >
-                  <M3Text role="labelSmall" color={theme.onSurfaceVariant}>{t('finance.remainingDays', { n: bDaysLeft })}</M3Text>
-                  <M3Text role="labelSmall" color={theme.onSurfaceVariant} style={TNUM} numberOfLines={1}>
-                    {t('finance.avgDailyAvailable')} {formatMoney(Math.round(r.remain / bDaysLeft), r.currency)}
-                  </M3Text>
-                </View>
+                <InsightRow
+                  label={t('finance.remainingDays', { n: bDaysLeft })}
+                  value={`${t('finance.avgDailyAvailable')} ${formatMoney(Math.round(r.remain / bDaysLeft), r.currency)}`}
+                  style={{ marginTop: space.sm }}
+                />
               ) : null}
             </View>
           );

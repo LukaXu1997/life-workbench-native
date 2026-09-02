@@ -8,7 +8,7 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 6, PATCH: 1 } as const;
+export const APP_VERSION = { MAJOR: 2, MINOR: 6, PATCH: 2 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.0.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.0.0"
@@ -19,7 +19,16 @@ export const BUILD_DATE = '2026-08-30';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.6.1 — 2026-08-30
+export const RELEASE_NOTES = `V2.6.2 — 2026-08-30
+财务 dashboard 细化（视觉/UX 打磨，不改逻辑）：
+
+· 新增统一「洞察条」InsightRow：左中性灰 caption + 右 tabular 值，纵向等距；储蓄率 / 环比上月 / 预算日均可用 三处派生指标统一呈现，消除窄屏 inline 断行参差
+· 配色收敛（少配色）：储蓄率、日均可用改为中性；仅「环比」保留方向语义（▲绿/▼红），净资产为负、预算超支、余额为负等真告警保留红
+· 间距节奏统一：卡内洞察条间距与 hairline 上下留白收口一致
+· 本月收支卡内「储蓄率/环比」作为本月区收尾洞察，与「固定」子区之间以 hairline 分层
+· 纯展示层改动：未新增存储、未改写入规则、不动 SCHEMA_VERSION（仍为 2）
+
+V2.6.1 — 2026-08-30
 计划页分段重构 + Notion 风格打磨（功能小版本）：
 
 · 计划页分段由 5 档收敛为 4 档，顺序固定为：日历 / 待办 / 待买 / 习惯；「日历」置顶并作为默认落地页
