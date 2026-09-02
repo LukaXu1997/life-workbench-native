@@ -20,7 +20,7 @@ import {
 } from '../components/ui';
 import { Icon, ICONS } from '../icons';
 import { useSubPageBottomInset } from '../components/layout';
-import { radius, pageMargin } from '../tokens';
+import { radius, pageMargin, cardGap } from '../tokens';
 import type { JournalEntry, InboxItem, MediaItem, MediaType, MediaStatus } from '../types';
 
 type Seg = 'diary' | 'inbox' | 'media';
@@ -62,7 +62,7 @@ export default function DiaryScreen({ navigation }: any) {
         subtitle={t('record.subtitle')}
         onBack={navigation?.canGoBack?.() ? () => navigation.goBack() : undefined}
       />
-      <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+      <View style={{ paddingHorizontal: pageMargin, paddingTop: 12 }}>
         <Segmented
           segments={[
             { key: 'diary', label: t('record.segDiary') },
@@ -126,7 +126,7 @@ function DiarySub({
   return (
     <>
       {adding && (
-        <Surface level={1} style={{ padding: 16, marginBottom: 12, borderRadius: radius.lg }}>
+        <Surface level={1} style={{ padding: 16, marginBottom: cardGap, borderRadius: radius.card }}>
           <M3Text role="titleMedium" style={{ marginBottom: 12 }}>
             {t('record.writeDiary')}
           </M3Text>
@@ -161,7 +161,7 @@ function DiarySub({
       )}
       {entries.length === 0 && !adding && <EmptyState icon={ICONS.journal} title={t('record.emptyDiary')} hint={t('record.emptyDiaryHint')} />}
       {entries.map((e) => (
-        <Surface key={e.id} level={0} style={{ padding: 14, marginBottom: 10, borderRadius: radius.lg }}>
+        <Surface key={e.id} level={0} style={{ padding: 16, marginBottom: cardGap, borderRadius: radius.card }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
             <M3Text role="titleMedium">{e.title}</M3Text>
             <M3Text style={{ fontSize: 18 }}>{e.mood}</M3Text>
@@ -203,7 +203,7 @@ function InboxSub({
   return (
     <>
       {adding && (
-        <Surface level={1} style={{ padding: 16, marginBottom: 12, borderRadius: radius.lg }}>
+        <Surface level={1} style={{ padding: 16, marginBottom: cardGap, borderRadius: radius.card }}>
           <M3Text role="titleMedium" style={{ marginBottom: 12 }}>
             {t('record.quickNote')}
           </M3Text>
@@ -225,17 +225,20 @@ function InboxSub({
               onPress={() => onToggle(it)}
               accessibilityRole="button"
               accessibilityLabel={it.done ? t('record.restore') : t('record.complete')}
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 24,
+                backgroundColor: it.done ? theme.primaryContainer : theme.surfaceContainer,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
             >
-              <IconTile
-                bg={it.done ? theme.successContainer : theme.surfaceContainer}
-                color={it.done ? theme.success : theme.onSurfaceVariant}
-              >
-                <Icon
-                  name={it.done ? ICONS.check : 'checkbox-blank-circle-outline'}
-                  size={18}
-                  color={it.done ? theme.success : theme.onSurfaceVariant}
-                />
-              </IconTile>
+              <Icon
+                name={it.done ? ICONS.check : 'checkbox-blank-circle-outline'}
+                size={22}
+                color={it.done ? theme.onPrimaryContainer : theme.onSurfaceVariant}
+              />
             </TouchableOpacity>
           }
           title={
@@ -284,7 +287,7 @@ function MediaSub({
   return (
     <>
       {adding && (
-        <Surface level={1} style={{ padding: 16, marginBottom: 12, borderRadius: radius.lg }}>
+        <Surface level={1} style={{ padding: 16, marginBottom: cardGap, borderRadius: radius.card }}>
           <M3Text role="titleMedium" style={{ marginBottom: 12 }}>
             {t('record.addMedia')}
           </M3Text>

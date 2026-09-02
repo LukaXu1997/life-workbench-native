@@ -10,6 +10,16 @@
 
 ---
 
+## V2.6.4 — 2026-08-30
+
+日记页视觉一致性打磨 + 我的/设置子页审查（纯视觉，未改动 SCHEMA_VERSION）：
+
+- 速记勾选控件统一为与 Plan/Home 一致的 48dp 实心勾选圈（CheckCircle）：完成=primaryContainer 实心+check，未完成=surfaceContainer+描边，消除此前 18dp 绿色描边 IconTile 的第三种不一致样式
+- 日记条目卡片对齐 Card 基线：内距 16 / 卡间距 cardGap / 圆角 radius.card，与全站卡片节奏一致（原 padding:14 / marginBottom:10 / radius.lg）
+- 段控容器外距 hardcoded 16 改为 pageMargin token
+- 我的/设置 7 个子页（外观/语言/数据与安全/通知/币种汇率/关于/二级骨架）经逐一审查，已统一采用 SubPage+ListGroup+NavRow 的 Notion 式结构，无不一致，本次未改动
+- 纯展示层改动：未新增存储、未改写入规则、不动 SCHEMA_VERSION（仍为 2）
+
 ## V2.6.3 — 2026-08-30
 
 Home 勾选控件跨屏统一（视觉一致性，未改动 SCHEMA_VERSION）：

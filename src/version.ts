@@ -8,7 +8,7 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 6, PATCH: 3 } as const;
+export const APP_VERSION = { MAJOR: 2, MINOR: 6, PATCH: 4 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.0.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.0.0"
@@ -19,7 +19,16 @@ export const BUILD_DATE = '2026-08-30';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.6.3 — 2026-08-30
+export const RELEASE_NOTES = `V2.6.4 — 2026-08-30
+日记页视觉一致性打磨 + 我的/设置子页审查（纯视觉，未改动 SCHEMA_VERSION）：
+
+· 速记勾选控件统一为与 Plan/Home 一致的 48dp 实心勾选圈（CheckCircle）：完成=primaryContainer 实心+check，未完成=surfaceContainer+描边，消除此前 18dp 绿色描边 IconTile 的第三种不一致样式
+· 日记条目卡片对齐 Card 基线：内距 16 / 卡间距 cardGap / 圆角 radius.card，与全站卡片节奏一致（原 padding:14 / marginBottom:10 / radius.lg）
+· 段控容器外距 hardcoded 16 改为 pageMargin token
+· 我的/设置 7 个子页（外观/语言/数据与安全/通知/币种汇率/关于/二级骨架）经逐一审查，已统一采用 SubPage+ListGroup+NavRow 的 Notion 式结构，无不一致，本次未改动
+· 纯展示层改动：未新增存储、未改写入规则、不动 SCHEMA_VERSION（仍为 2）
+
+V2.6.3 — 2026-08-30
 Home 勾选控件跨屏统一（视觉一致性，不改逻辑）：
 
 · 将 Home「今日计划」的 24dp 描边勾选 icon 替换为与 Plan 模块（V2.6.1）一致的 48dp 实心勾选圈（CheckCircle）：完成=primaryContainer 实心+check，未完成=surfaceContainer+描边
