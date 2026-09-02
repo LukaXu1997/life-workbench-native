@@ -29,7 +29,8 @@ import { ScreenHeader, PrimaryButton } from '../components/kit';
 import { Icon, ICONS } from '../icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { radius, space, pageMargin, touchMin } from '../tokens';
-import { useBottomContentInset } from '../components/layout';
+import { useBottomContentInset, TAB_BAR_HEIGHT, TAB_BAR_FLOAT_GAP } from '../components/layout';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppBottomSheet } from '../components/anim';
 import type { Task, SubTask, Habit, ShopItem, Priority, HabitType, ShopPriority, Currency, RepeatFrequency } from '../types';
 import {
@@ -135,6 +136,17 @@ function sortTasks(list: Task[], key: SortKey): Task[] {
 function matchesTag(task: Task, tag: string | null): boolean {
   if (!tag) return true;
   return (task.tags || []).includes(tag);
+}
+
+/**
+ * 待办分栏当前「可见」的未完成任务 —— 搜索 / 标签筛选后的结果。
+ * V2.11.0：批量操作的全选与已选计数都以此为准，保证「全选」只作用于屏幕上
+ * 看得到的那些任务，不会误伤被筛选条件隐藏掉的条目。
+ * TodoSub 自身也复用它派生分组列表，两处口径永远一致。
+ */
+function visibleTodoTasks(tasks: Task[], searchText: string, activeTag: string | null): Task[] {
+  const q = searchText.trim();
+  return tasks.filter((x) => !x.completed && matchesQuery(x, q) && matchesTag(x, activeTag));
 }
 
 type Seg = 'calendar' | 'todo' | 'shopping' | 'habit';
@@ -294,11 +306,91 @@ export default function TasksScreen() {
     showUndo(t('plan.deletedShop'), async () => { await store.setShopping(prev); });
   };
 
+  // ——— 多选模式 + 批量操作（V2.11.0，仅作用于「待办」分栏）———
+  const [selecting, setSelecting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [batchTagOpen, setBatchTagOpen] = useState(false);
+
+  // 屏幕上真正可见的待办 —— 全选 / 已选计数都锚定它
+  const selectableIds = useMemo(
+    () => visibleTodoTasks(d.tasks, searchText, activeTag).map((x) => x.id),
+    [d.tasks, searchText, activeTag],
+  );
+  // 已选集合只保留「仍可见」的 id：筛选条件变化后不会残留影子选中项
+  const effectiveSelected = useMemo(() => {
+    const s = new Set<string>();
+    for (const id of selectableIds) if (selectedIds.has(id)) s.add(id);
+    return s;
+  }, [selectableIds, selectedIds]);
+  const selectedCount = effectiveSelected.size;
+  const allSelected = selectableIds.length > 0 && selectedCount === selectableIds.length;
+
+  const exitSelect = () => {
+    setSelecting(false);
+    setSelectedIds(new Set());
+    setBatchTagOpen(false);
+  };
+  const enterSelect = (id?: string) => {
+    setSelecting(true);
+    setSelectedIds(id ? new Set([id]) : new Set());
+  };
+  const toggleSelect = (id: string) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const toggleSelectAll = () =>
+    setSelectedIds(allSelected ? new Set() : new Set(selectableIds));
+
+  /** 批量操作统一入口：拿到变更前的完整列表 → 走 store.setTasks → 挂撤销 */
+  const runBatch = async (
+    mutate: (list: Task[]) => Task[],
+    msg: string,
+  ) => {
+    const prev = await store.getTasks();
+    await store.setTasks(mutate(prev));
+    showUndo(msg, async () => { await store.setTasks(prev); });
+    exitSelect();
+  };
+  const batchComplete = () =>
+    runBatch(
+      (list) => list.map((x) => (effectiveSelected.has(x.id) ? { ...x, completed: true } : x)),
+      t('plan.batchCompleted', { count: selectedCount }),
+    );
+  const batchDelete = () =>
+    runBatch(
+      (list) => list.filter((x) => !effectiveSelected.has(x.id)),
+      t('plan.batchDeleted', { count: selectedCount }),
+    );
+  const applyBatchTag = (tag: string) => {
+    const clean = tag.trim();
+    if (!clean) return;
+    setBatchTagOpen(false);
+    runBatch(
+      (list) =>
+        list.map((x) => {
+          if (!effectiveSelected.has(x.id)) return x;
+          const tags = x.tags || [];
+          if (tags.includes(clean)) return x;
+          return { ...x, tags: [...tags, clean] };
+        }),
+      t('plan.batchTagged', { count: selectedCount }),
+    );
+  };
+  const askBatchDelete = () =>
+    Alert.alert(t('plan.deleteTitle'), t('plan.confirmBatchDelete', { count: selectedCount }), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('common.delete'), style: 'destructive', onPress: batchDelete },
+    ]);
+
   const fabLabel = seg === 'habit' ? t('plan.fabHabit') : seg === 'shopping' ? t('plan.fabShopping') : t('plan.fabTodo');
   const openAdd = () => setAdding(true);
   const handleSegChange = (next: Seg) => {
     setSeg(next);
     setAdding(false);
+    exitSelect(); // 换分栏即退出多选，避免选中项跨分栏残留
   };
 
   // ---- 启动时补生成过期的重复任务 ----
@@ -403,6 +495,34 @@ export default function TasksScreen() {
               <Icon name={ICONS.sort} size={18} color={theme.onSurfaceVariant} />
               <M3Text role="labelMedium" color={theme.onSurfaceVariant}>{sortLabel(t, sortKey)}</M3Text>
             </TouchableOpacity>
+            {/* 多选模式入口（V2.11.0）：仅待办分栏，长按任务行也可进入 */}
+            {seg === 'todo' && (
+              <TouchableOpacity
+                onPress={() => (selecting ? exitSelect() : enterSelect())}
+                accessibilityRole="button"
+                accessibilityState={{ selected: selecting }}
+                accessibilityLabel={selecting ? t('plan.exitSelect') : t('plan.selectMode')}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  paddingVertical: 8,
+                  paddingHorizontal: 12,
+                  borderRadius: radius.md,
+                  backgroundColor: selecting ? theme.primaryContainer : theme.surfaceContainer,
+                  minHeight: touchMin,
+                }}
+              >
+                <Icon
+                  name={selecting ? ICONS.close : ICONS.tasks}
+                  size={18}
+                  color={selecting ? theme.onPrimaryContainer : theme.onSurfaceVariant}
+                />
+                <M3Text role="labelMedium" color={selecting ? theme.onPrimaryContainer : theme.onSurfaceVariant}>
+                  {selecting ? t('plan.exitSelect') : t('plan.selectMode')}
+                </M3Text>
+              </TouchableOpacity>
+            )}
           </View>
           {allTags.length > 0 && (
             <View style={{ marginTop: space.xs, flexDirection: 'row', alignItems: 'center' }}>
@@ -432,6 +552,10 @@ export default function TasksScreen() {
           onAddSubtask={addSubtask}
           onDeleteSubtask={deleteSubtask}
           bottomInset={bottomInset}
+          selecting={selecting}
+          selectedIds={effectiveSelected}
+          onToggleSelect={toggleSelect}
+          onEnterSelect={enterSelect}
         />
       )}
       {seg === 'habit' && (
@@ -478,8 +602,23 @@ export default function TasksScreen() {
         />
       )}
 
-      {shouldShowAddFab(adding) && (
+      {/* 多选模式下让位给批量操作条 */}
+      {shouldShowAddFab(adding) && !(selecting && seg === 'todo') && (
         <FAB icon={ICONS.add} label={fabLabel} onPress={openAdd} />
+      )}
+
+      {/* 批量操作条（V2.11.0）：悬在胶囊底栏之上，仅待办分栏的多选模式出现 */}
+      {selecting && seg === 'todo' && (
+        <BatchActionBar
+          selectedCount={selectedCount}
+          allSelected={allSelected}
+          disabled={selectedCount === 0}
+          onExit={exitSelect}
+          onSelectAll={toggleSelectAll}
+          onComplete={batchComplete}
+          onTag={() => setBatchTagOpen(true)}
+          onDelete={askBatchDelete}
+        />
       )}
 
       {/* 新增日程 / 习惯：底部 BottomSheet（购物 tab 用内联表单，不走这里） */}
@@ -498,6 +637,20 @@ export default function TasksScreen() {
       </AppBottomSheet>
       )}
 
+      {/* 批量加标签（V2.11.0）：选已有标签或现场新建，选中项统一追加 */}
+      <AppBottomSheet
+        visible={batchTagOpen}
+        onClose={() => setBatchTagOpen(false)}
+        title={t('plan.batchTagTitle', { count: selectedCount })}
+        scroll
+      >
+        <BatchTagPanel
+          existingTags={allTags}
+          onPick={applyBatchTag}
+          onCancel={() => setBatchTagOpen(false)}
+        />
+      </AppBottomSheet>
+
       {snack && (
         <Snackbar
           message={snack.msg}
@@ -513,21 +666,26 @@ export default function TasksScreen() {
   );
 }
 
-/* 48×48 勾选圈：统一最小触控，主色填充表示已完成 */
+/* 48×48 勾选圈：统一最小触控，主色填充表示已完成。
+   square=true → 多选模式的方形复选框（V2.11.0），与「完成」语义做视觉区分 */
 function CheckCircle({
   checked,
   onToggle,
   a11y,
   theme,
   size = 48,
+  square = false,
 }: {
   checked: boolean;
   onToggle: () => void;
   a11y: string;
   theme: any;
   size?: number;
+  square?: boolean;
 }) {
   const iconSize = Math.round(size * 0.46);
+  const fill = square ? theme.primary : theme.primaryContainer;
+  const onFill = square ? theme.onPrimary : theme.onPrimaryContainer;
   return (
     <TouchableOpacity
       onPress={onToggle}
@@ -537,18 +695,178 @@ function CheckCircle({
       style={{
         width: size,
         height: size,
-        borderRadius: size / 2,
-        backgroundColor: checked ? theme.primaryContainer : theme.surfaceContainer,
+        borderRadius: square ? size * 0.28 : size / 2,
+        backgroundColor: checked ? fill : theme.surfaceContainer,
         alignItems: 'center',
         justifyContent: 'center',
       }}
     >
       <Icon
-        name={checked ? ICONS.check : 'checkbox-blank-circle-outline'}
+        name={checked ? ICONS.check : square ? 'checkbox-blank-outline' : 'checkbox-blank-circle-outline'}
         size={iconSize}
-        color={checked ? theme.onPrimaryContainer : theme.onSurfaceVariant}
+        color={checked ? onFill : theme.onSurfaceVariant}
       />
     </TouchableOpacity>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 批量操作条（V2.11.0）：悬在胶囊底栏上方，只在待办分栏的多选模式出现    */
+/* ------------------------------------------------------------------ */
+function BatchActionBar({
+  selectedCount,
+  allSelected,
+  disabled,
+  onExit,
+  onSelectAll,
+  onComplete,
+  onTag,
+  onDelete,
+}: {
+  selectedCount: number;
+  allSelected: boolean;
+  disabled: boolean;
+  onExit: () => void;
+  onSelectAll: () => void;
+  onComplete: () => void;
+  onTag: () => void;
+  onDelete: () => void;
+}) {
+  const { theme } = useTheme();
+  const { t } = useI18n();
+  const insets = useSafeAreaInsets();
+  const actions: Array<{ key: string; label: string; icon: string; fg: string; bg: string; onPress: () => void }> = [
+    { key: 'complete', label: t('plan.batchComplete'), icon: ICONS.check, fg: theme.onPrimaryContainer, bg: theme.primaryContainer, onPress: onComplete },
+    { key: 'tag', label: t('plan.batchTag'), icon: ICONS.tag, fg: theme.onSurfaceVariant, bg: theme.surfaceContainer, onPress: onTag },
+    { key: 'delete', label: t('plan.batchDelete'), icon: ICONS.delete, fg: theme.onErrorContainer, bg: theme.errorContainer, onPress: onDelete },
+  ];
+  return (
+    <View
+      style={{
+        position: 'absolute',
+        left: 12,
+        right: 12,
+        bottom: insets.bottom + TAB_BAR_FLOAT_GAP + TAB_BAR_HEIGHT + 12,
+        backgroundColor: theme.surface,
+        borderWidth: StyleSheet.hairlineWidth,
+        borderColor: theme.outlineVariant,
+        borderRadius: radius.xl,
+        padding: space.sm,
+        shadowColor: '#000',
+        shadowOpacity: 0.14,
+        shadowRadius: 14,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 6,
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
+        <IconButton
+          name={ICONS.close}
+          color={theme.onSurfaceVariant}
+          onPress={onExit}
+          accessibilityLabel={t('plan.exitSelect')}
+        />
+        <M3Text role="titleMedium" style={{ flex: 1 }} numberOfLines={1}>
+          {t('plan.selectedCount', { count: selectedCount })}
+        </M3Text>
+        <TouchableOpacity
+          onPress={onSelectAll}
+          accessibilityRole="button"
+          accessibilityLabel={allSelected ? t('plan.deselectAll') : t('plan.selectAll')}
+          hitSlop={8}
+          style={{ paddingVertical: 8, paddingHorizontal: 10, minHeight: touchMin, justifyContent: 'center' }}
+        >
+          <M3Text role="labelLarge" color={theme.primary}>
+            {allSelected ? t('plan.deselectAll') : t('plan.selectAll')}
+          </M3Text>
+        </TouchableOpacity>
+      </View>
+      <View style={{ flexDirection: 'row', gap: space.sm, marginTop: space.xs }}>
+        {actions.map((a) => (
+          <TouchableOpacity
+            key={a.key}
+            onPress={disabled ? undefined : a.onPress}
+            disabled={disabled}
+            accessibilityRole="button"
+            accessibilityLabel={a.label}
+            accessibilityState={{ disabled }}
+            activeOpacity={0.85}
+            style={{
+              flex: 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              minHeight: touchMin,
+              paddingHorizontal: 6,
+              borderRadius: radius.md,
+              backgroundColor: a.bg,
+              opacity: disabled ? 0.4 : 1,
+            }}
+          >
+            <Icon name={a.icon} size={18} color={a.fg} />
+            <M3Text role="labelLarge" color={a.fg} numberOfLines={1}>{a.label}</M3Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+/* 批量加标签面板（V2.11.0）：已有标签一键套用，或直接新建一个 */
+function BatchTagPanel({
+  existingTags,
+  onPick,
+  onCancel,
+}: {
+  existingTags: string[];
+  onPick: (tag: string) => void;
+  onCancel: () => void;
+}) {
+  const { theme } = useTheme();
+  const { t } = useI18n();
+  const [text, setText] = useState('');
+  const submit = () => {
+    const v = text.trim();
+    if (!v) return;
+    setText('');
+    onPick(v);
+  };
+  return (
+    <View style={{ gap: space.md, paddingBottom: space.sm }}>
+      {existingTags.length > 0 ? (
+        <View>
+          <M3Text role="labelMedium" color={theme.onSurfaceVariant} style={{ marginBottom: space.xs }}>
+            {t('plan.filterByTag')}
+          </M3Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {existingTags.map((tg) => (
+              <Chip key={tg} label={tg} icon={ICONS.tag} onPress={() => onPick(tg)} />
+            ))}
+          </View>
+        </View>
+      ) : null}
+      <View>
+        <M3Text role="labelMedium" color={theme.onSurfaceVariant} style={{ marginBottom: space.xs }}>
+          {t('plan.newTag')}
+        </M3Text>
+        <TextField
+          value={text}
+          onChangeText={setText}
+          placeholder={t('plan.tagPlaceholder')}
+          onSubmitEditing={submit}
+          returnKeyType="done"
+        />
+      </View>
+      <View style={{ flexDirection: 'row', gap: space.sm }}>
+        <View style={{ flex: 1 }}>
+          <Button label={t('common.cancel')} variant="ghost" onPress={onCancel} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Button label={t('plan.addTag')} variant="tonal" onPress={submit} disabled={text.trim().length === 0} />
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -574,6 +892,10 @@ function TodoSub({
   onAddSubtask,
   onDeleteSubtask,
   bottomInset,
+  selecting,
+  selectedIds,
+  onToggleSelect,
+  onEnterSelect,
 }: {
   tasks: Task[];
   today: string;
@@ -587,12 +909,17 @@ function TodoSub({
   onAddSubtask: (task: Task, title: string) => void;
   onDeleteSubtask: (task: Task, subId: string) => void;
   bottomInset: number;
+  /** 多选模式（V2.11.0） */
+  selecting: boolean;
+  selectedIds: Set<string>;
+  onToggleSelect: (id: string) => void;
+  onEnterSelect: (id: string) => void;
 }) {
   const { theme } = useTheme();
   const { t } = useI18n();
   const q = searchText.trim();
   const filtering = q.length > 0 || activeTag !== null;
-  const active = tasks.filter((x) => !x.completed && matchesQuery(x, q) && matchesTag(x, activeTag));
+  const active = visibleTodoTasks(tasks, searchText, activeTag);
   const overdue = sortTasks(
     active.filter((x) => classifySchedule(x.date, x.completed, today) === 'overdue'),
     sortKey,
@@ -640,7 +967,22 @@ function TodoSub({
             </View>
           );
         }
-        if (item.kind === 'task') return <TaskRow task={item.task} onToggle={onToggle} onDelete={onDelete} confirmDelete={confirmDelete} onToggleSubtask={onToggleSubtask} onAddSubtask={onAddSubtask} onDeleteSubtask={onDeleteSubtask} />;
+        if (item.kind === 'task')
+          return (
+            <TaskRow
+              task={item.task}
+              onToggle={onToggle}
+              onDelete={onDelete}
+              confirmDelete={confirmDelete}
+              onToggleSubtask={onToggleSubtask}
+              onAddSubtask={onAddSubtask}
+              onDeleteSubtask={onDeleteSubtask}
+              selecting={selecting}
+              selected={selectedIds.has(item.task.id)}
+              onToggleSelect={onToggleSelect}
+              onEnterSelect={onEnterSelect}
+            />
+          );
         return null;
       }}
       contentContainerStyle={{ paddingHorizontal: pageMargin, paddingTop: space.sm, paddingBottom: bottomInset }}
@@ -1000,6 +1342,11 @@ function TaskRow({
   onToggleSubtask,
   onAddSubtask,
   onDeleteSubtask,
+  // 多选模式（V2.11.0）—— 全部可选，日历分栏不传即退化为普通行
+  selecting = false,
+  selected = false,
+  onToggleSelect,
+  onEnterSelect,
 }: {
   task: Task;
   onToggle: (t: Task) => void;
@@ -1008,6 +1355,10 @@ function TaskRow({
   onToggleSubtask: (task: Task, subId: string) => void;
   onAddSubtask: (task: Task, title: string) => void;
   onDeleteSubtask: (task: Task, subId: string) => void;
+  selecting?: boolean;
+  selected?: boolean;
+  onToggleSelect?: (id: string) => void;
+  onEnterSelect?: (id: string) => void;
 }) {
   const { theme } = useTheme();
   const { t } = useI18n();
@@ -1015,19 +1366,45 @@ function TaskRow({
   const subs = task.subtasks || [];
   const done = subs.filter((s) => s.done).length;
   const total = subs.length;
-  const hasSubs = total > 0;
+  const hasSubs = total > 0 && !selecting;
+  // 选中高亮：用负外边距 + 等量内边距补回来，避免行内文字在进出多选时左右跳动
+  const highlight: any = selecting && selected
+    ? {
+        backgroundColor: theme.surfaceContainerHigh,
+        borderRadius: radius.md,
+        marginHorizontal: -space.sm,
+        paddingHorizontal: space.sm,
+      }
+    : null;
   return (
     <View>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: space.md,
-          minHeight: 56,
-          paddingVertical: space.sm,
-        }}
+      <TouchableOpacity
+        activeOpacity={1}
+        onLongPress={selecting || !onEnterSelect ? undefined : () => onEnterSelect(task.id)}
+        accessibilityRole="button"
+        accessibilityLabel={task.title}
+        style={[
+          {
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: space.md,
+            minHeight: 56,
+            paddingVertical: space.sm,
+          },
+          highlight,
+        ]}
       >
-        <CheckCircle checked={task.completed} onToggle={() => onToggle(task)} a11y={task.completed ? t('plan.markUndone') : t('plan.markDone')} theme={theme} />
+        {selecting ? (
+          <CheckCircle
+            square
+            checked={selected}
+            onToggle={() => onToggleSelect?.(task.id)}
+            a11y={t('plan.selectTaskA11y', { name: task.title })}
+            theme={theme}
+          />
+        ) : (
+          <CheckCircle checked={task.completed} onToggle={() => onToggle(task)} a11y={task.completed ? t('plan.markUndone') : t('plan.markDone')} theme={theme} />
+        )}
         <View style={{ flex: 1, minWidth: 0 }}>
           <M3Text
             role="bodyLarge"
@@ -1076,13 +1453,15 @@ function TaskRow({
             bg={task.priority === 'P0' ? theme.errorContainer : theme.warningContainer}
           />
         ) : null}
-        <IconButton
-          name={ICONS.delete}
-          color={theme.onSurfaceVariant}
-          onPress={() => confirmDelete(task.title, () => onDelete(task))}
-          accessibilityLabel={t('plan.deleteA11y', { name: task.title })}
-        />
-      </View>
+        {!selecting && (
+          <IconButton
+            name={ICONS.delete}
+            color={theme.onSurfaceVariant}
+            onPress={() => confirmDelete(task.title, () => onDelete(task))}
+            accessibilityLabel={t('plan.deleteA11y', { name: task.title })}
+          />
+        )}
+      </TouchableOpacity>
       {hasSubs && expanded ? (
         <SubTaskList
           task={task}

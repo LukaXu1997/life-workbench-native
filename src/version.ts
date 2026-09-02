@@ -8,18 +8,30 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 10, PATCH: 0 } as const;
+export const APP_VERSION = { MAJOR: 2, MINOR: 11, PATCH: 0 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.0.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.0.0"
-export const VERSION_CODE = APP_VERSION.MAJOR * 10000 + APP_VERSION.MINOR * 100 + APP_VERSION.PATCH; // 20000
+export const VERSION_CODE = APP_VERSION.MAJOR * 10000 + APP_VERSION.MINOR * 100 + APP_VERSION.PATCH; // 21100
 
 // Set on each release.
 export const BUILD_DATE = '2026-08-30';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.10.0 — 2026-08-30
+export const RELEASE_NOTES = `V2.11.0 — 2026-08-30
+任务批量操作（功能小版本，零新增依赖，SCHEMA_VERSION 仍为 2）：
+
+· 待办多选模式：待办页新增「选择」入口，点按进入多选；勾选圈由圆形切换为方形（checkbox 语义），整行可点选中，选中行高亮
+· 全选 / 取消全选：批量操作栏一键选中 / 取消全部可见待办
+· 批量完成：一键将选中任务标记为完成，任务从待办移除，底部 Snackbar「已完成 N 项」并支持撤销
+· 批量删除：一键删除选中任务，弹窗二次确认「确定删除选中的 N 项？」，删除后 Snackbar「已删除 N 项」支持撤销
+· 批量加标签：为选中任务批量添加标签，复用标签编辑器（chip 展示 + 输入回车添加）+ 新建标签入口，写入后 Snackbar「已为 N 项添加标签」
+· 选中 0 项时三个操作按钮禁用，并提示「请先选择任务」
+· 全量 CN/EN i18n：selectMode/exitSelect/selectAll/deselectAll/selectedCount/batchComplete/batchDelete/batchTag/batchTagTitle/confirmBatchDelete/batchDeleteHint/batchCompleted/batchDeleted/batchTagged/cancelSelect/batchEmpty/newTag/selectTaskA11y 共 18 条
+· 纯展示层 + 派生字段：未改动任何存储结构与写入规则，SCHEMA_VERSION 仍为 2，零新增依赖
+
+V2.10.0 — 2026-08-30
 任务标签与标签筛选（功能小版本，零新增依赖）：
 
 · 任务支持标签（tags）：每个任务可挂任意数量标签，复用计划页新增标签编辑器（chip 展示 + 输入回车添加 + 单标签删除），创建时一并写入

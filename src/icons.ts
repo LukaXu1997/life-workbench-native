@@ -41,6 +41,8 @@ export const ICONS = {
   restore: 'cloud-download-outline',
   search: 'magnify',
   sort: 'sort',
+  tag: 'tag-outline',            // 任务标签 / 批量加标签（V2.11.0）
+  selectAll: 'select-all',       // 批量操作全选（V2.11.0）
 
   add: 'plus',
   check: 'check',
