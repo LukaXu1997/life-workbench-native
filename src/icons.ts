@@ -40,6 +40,7 @@ export const ICONS = {
   backup: 'cloud-upload-outline',
   restore: 'cloud-download-outline',
   search: 'magnify',
+  sort: 'sort',
 
   add: 'plus',
   check: 'check',

@@ -236,6 +236,16 @@ export const en = {
     repeatMonthly: 'Monthly',
     repeatYearly: 'Yearly',
     generatedNextRecurring: 'Generated next recurring task',
+    // Search + sort (V2.9.0)
+    search: 'Search',
+    searchPlaceholder: 'Search title / note',
+    sortBy: 'Sort',
+    sortPriority: 'Priority',
+    sortDate: 'Due date',
+    sortCreated: 'Created',
+    sortAlpha: 'Title',
+    noResults: 'No matching tasks',
+    noResultsHint: 'Try a different keyword',
   },
   habitCal: {
     monthYear: '%{month} %{year}',

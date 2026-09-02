@@ -236,6 +236,16 @@ export const zh = {
     repeatMonthly: '每月',
     repeatYearly: '每年',
     generatedNextRecurring: '已生成下一笔重复任务',
+    // 搜索 + 排序（V2.9.0）
+    search: '搜索',
+    searchPlaceholder: '搜索任务标题 / 备注',
+    sortBy: '排序',
+    sortPriority: '优先级',
+    sortDate: '截止日期',
+    sortCreated: '创建时间',
+    sortAlpha: '标题',
+    noResults: '没有匹配的任务',
+    noResultsHint: '换个关键词试试',
   },
   habitCal: {
     monthYear: '%{month} %{year}',

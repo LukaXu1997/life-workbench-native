@@ -86,6 +86,53 @@ function addPeriod(dateStr: string, freq: RepeatFrequency): string {
   return fmtDate(d);
 }
 
+// ---- 搜索 + 排序（V2.9.0）----
+type SortKey = 'priority' | 'date' | 'created' | 'alpha';
+const SORT_KEYS: SortKey[] = ['priority', 'date', 'created', 'alpha'];
+function sortLabel(t: (k: string, p?: Record<string, any>) => string, key: SortKey): string {
+  return key === 'priority'
+    ? t('plan.sortPriority')
+    : key === 'date'
+      ? t('plan.sortDate')
+      : key === 'created'
+        ? t('plan.sortCreated')
+        : t('plan.sortAlpha');
+}
+const PRIORITY_RANK: Record<string, number> = { P0: 0, P1: 1, P2: 2 };
+function matchesQuery(task: Task, q: string): boolean {
+  if (!q) return true;
+  const s = q.trim().toLowerCase();
+  if (!s) return true;
+  return (
+    (task.title || '').toLowerCase().includes(s) ||
+    (task.note || '').toLowerCase().includes(s)
+  );
+}
+function sortTasks(list: Task[], key: SortKey): Task[] {
+  const arr = [...list];
+  switch (key) {
+    case 'priority':
+      arr.sort(
+        (a, b) =>
+          (PRIORITY_RANK[a.priority] ?? 3) - (PRIORITY_RANK[b.priority] ?? 3) ||
+          a.date.localeCompare(b.date) ||
+          a.title.localeCompare(b.title),
+      );
+      break;
+    case 'created':
+      arr.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      break;
+    case 'alpha':
+      arr.sort((a, b) => a.title.localeCompare(b.title));
+      break;
+    case 'date':
+    default:
+      arr.sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
+      break;
+  }
+  return arr;
+}
+
 type Seg = 'calendar' | 'todo' | 'shopping' | 'habit';
 type UndoState = { msg: string; undo: () => Promise<void> } | null;
 
@@ -124,6 +171,9 @@ export default function TasksScreen() {
   }, [route?.params?.seg]);
   const [adding, setAdding] = useState(false);
   const [snack, setSnack] = useState<UndoState>(null);
+  // 搜索 + 排序（V2.9.0）：待办 / 日历共用，跨分栏保持同步
+  const [searchText, setSearchText] = useState('');
+  const [sortKey, setSortKey] = useState<SortKey>('date');
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const today = todayStr();
   const bottomInset = useBottomContentInset(72); // +72 给悬浮 FAB 让位
@@ -306,11 +356,53 @@ export default function TasksScreen() {
         </View>
       </View>
 
+      {/* 搜索 + 排序（V2.9.0）：待办 / 日历共用，跨分栏同步 */}
+      {(seg === 'todo' || seg === 'calendar') && (
+        <View style={{ paddingHorizontal: pageMargin, paddingTop: space.xs, paddingBottom: space.xs }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <View style={{ flex: 1 }}>
+              <TextField
+                value={searchText}
+                onChangeText={setSearchText}
+                placeholder={t('plan.searchPlaceholder')}
+                trailing={
+                  searchText ? (
+                    <IconButton
+                      name={ICONS.close}
+                      size={20}
+                      color={theme.onSurfaceVariant}
+                      onPress={() => setSearchText('')}
+                      accessibilityLabel={t('common.cancel')}
+                    />
+                  ) : (
+                    <Icon name={ICONS.search} size={20} color={theme.onSurfaceVariant} />
+                  )
+                }
+              />
+            </View>
+            <TouchableOpacity
+              onPress={() => {
+                const i = SORT_KEYS.indexOf(sortKey);
+                setSortKey(SORT_KEYS[(i + 1) % SORT_KEYS.length]);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`${t('plan.sortBy')}: ${sortLabel(t, sortKey)}`}
+              style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 8, paddingHorizontal: 12, borderRadius: radius.md, backgroundColor: theme.surfaceContainer, minHeight: touchMin }}
+            >
+              <Icon name={ICONS.sort} size={18} color={theme.onSurfaceVariant} />
+              <M3Text role="labelMedium" color={theme.onSurfaceVariant}>{sortLabel(t, sortKey)}</M3Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
       {/* 「今日」模块已合并进 CalendarSub：选中「今天」时日历详情区同时展示当日任务 + 今日习惯 */}
       {seg === 'todo' && (
         <TodoSub
           tasks={d.tasks}
           today={today}
+          searchText={searchText}
+          sortKey={sortKey}
           onToggle={toggleTask}
           onDelete={deleteTask}
           confirmDelete={confirmDelete}
@@ -349,6 +441,8 @@ export default function TasksScreen() {
           tasks={d.tasks}
           habits={d.habits}
           today={today}
+          searchText={searchText}
+          sortKey={sortKey}
           onToggle={toggleTask}
           onDelete={deleteTask}
           onToggleHabit={toggleHabit}
@@ -447,6 +541,8 @@ function CheckCircle({
 function TodoSub({
   tasks,
   today,
+  searchText,
+  sortKey,
   onToggle,
   onDelete,
   confirmDelete,
@@ -457,6 +553,8 @@ function TodoSub({
 }: {
   tasks: Task[];
   today: string;
+  searchText: string;
+  sortKey: SortKey;
   onToggle: (t: Task) => void;
   onDelete: (t: Task) => void;
   confirmDelete: (name: string, fn: () => void) => void;
@@ -467,14 +565,21 @@ function TodoSub({
 }) {
   const { theme } = useTheme();
   const { t } = useI18n();
-  const active = tasks.filter((x) => !x.completed);
-  const overdue = active
-    .filter((x) => classifySchedule(x.date, x.completed, today) === 'overdue')
-    .sort((a, b) => a.date.localeCompare(b.date));
-  const todayList = active.filter((x) => classifySchedule(x.date, x.completed, today) === 'today');
-  const upcoming = active
-    .filter((x) => classifySchedule(x.date, x.completed, today) === 'upcoming')
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const q = searchText.trim();
+  const searching = q.length > 0;
+  const active = tasks.filter((x) => !x.completed && matchesQuery(x, q));
+  const overdue = sortTasks(
+    active.filter((x) => classifySchedule(x.date, x.completed, today) === 'overdue'),
+    sortKey,
+  );
+  const todayList = sortTasks(
+    active.filter((x) => classifySchedule(x.date, x.completed, today) === 'today'),
+    sortKey,
+  );
+  const upcoming = sortTasks(
+    active.filter((x) => classifySchedule(x.date, x.completed, today) === 'upcoming'),
+    sortKey,
+  );
 
   const rows: Row[] = [];
   if (overdue.length > 0) {
@@ -490,7 +595,11 @@ function TodoSub({
     upcoming.forEach((task) => rows.push({ kind: 'task', id: task.id, task }));
   }
   if (rows.length === 0) {
-    rows.push({ kind: 'empty', id: 'empty', icon: ICONS.tasks, title: t('plan.emptyTodo'), hint: t('plan.emptyTodoHint') });
+    if (searching) {
+      rows.push({ kind: 'empty', id: 'empty', icon: ICONS.search, title: t('plan.noResults'), hint: t('plan.noResultsHint') });
+    } else {
+      rows.push({ kind: 'empty', id: 'empty', icon: ICONS.tasks, title: t('plan.emptyTodo'), hint: t('plan.emptyTodoHint') });
+    }
   }
 
   return (
@@ -574,6 +683,8 @@ function CalendarSub({
   tasks,
   habits,
   today,
+  searchText,
+  sortKey,
   onToggle,
   onDelete,
   onToggleHabit,
@@ -587,6 +698,8 @@ function CalendarSub({
   tasks: Task[];
   habits: Habit[];
   today: string;
+  searchText: string;
+  sortKey: SortKey;
   onToggle: (t: Task) => void;
   onDelete: (t: Task) => void;
   onToggleHabit: (h: Habit) => void;
@@ -633,7 +746,9 @@ function CalendarSub({
   ];
 
   const monthLabel = `${yy}·${`${mm}`.padStart(2, '0')}`;
-  const selList = byDate[sel] || [];
+  const q = searchText.trim();
+  const selList = sortTasks((byDate[sel] || []).filter((x) => matchesQuery(x, q)), sortKey);
+  const searching = q.length > 0;
   const selHasTasks = selList.length > 0;
 
   const shift = (delta: number) => {
@@ -728,7 +843,11 @@ function CalendarSub({
           ))
         ) : (
           <View style={{ marginTop: space.md }}>
-            <EmptyState icon={ICONS.tasks} title={t('plan.calEmpty')} />
+            {searching ? (
+              <EmptyState icon={ICONS.search} title={t('plan.noResults')} hint={t('plan.noResultsHint')} />
+            ) : (
+              <EmptyState icon={ICONS.tasks} title={t('plan.calEmpty')} />
+            )}
           </View>
         )}
       </View>

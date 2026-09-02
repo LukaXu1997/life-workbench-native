@@ -8,7 +8,7 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 8, PATCH: 0 } as const;
+export const APP_VERSION = { MAJOR: 2, MINOR: 9, PATCH: 0 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.0.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.0.0"
@@ -19,7 +19,18 @@ export const BUILD_DATE = '2026-08-30';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.8.0 — 2026-08-30
+export const RELEASE_NOTES = `V2.9.0 — 2026-08-30
+任务搜索与智能排序（功能小版本，零新增依赖）：
+
+· 待办 / 日历新增搜索框：按标题与备注实时过滤（不区分大小写），跨分栏共享同一搜索词，切换待办↔日历时搜索保持同步
+· 智能排序：新增排序切换，支持 优先级 / 截止日期 / 创建时间 / 标题 四档；默认按截止日期（与原分组顺序一致）
+· 待办排序在「逾期 / 今天 / 即将到来」各分组内分别生效，分组语义（逾期优先）保持不变
+· 日历日详情按所选排序呈现当天任务（含已完成）；搜索时仅过滤当天任务，月历圆点不受影响
+· 空结果提示：搜索无匹配时显示「没有匹配的任务」及换关键词提示，替代原空状态
+· 全量 CN/EN i18n：search / searchPlaceholder / sortBy / sortPriority / sortDate / sortCreated / sortAlpha / noResults 共 8 条
+· 纯展示层 + 派生字段：未改动任何存储结构与写入规则，SCHEMA_VERSION 仍为 2
+
+V2.8.0 — 2026-08-30
 重复任务（Recurring Tasks，零新增依赖）：
 
 · Task 新增可选 repeat 字段（RepeatFrequency：none/daily/weekly/monthly/yearly），向后兼容，旧数据无此字段仍正常
