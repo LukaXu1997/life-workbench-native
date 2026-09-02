@@ -66,15 +66,15 @@ function fmtTime(d: Date): string {
   return `${`${d.getHours()}`.padStart(2, '0')}:${`${d.getMinutes()}`.padStart(2, '0')}`;
 }
 
-type Seg = 'today' | 'todo' | 'shopping' | 'habit' | 'calendar';
+type Seg = 'calendar' | 'todo' | 'shopping' | 'habit';
 type UndoState = { msg: string; undo: () => Promise<void> } | null;
 
-// §七 计划页只保留三档：今天 / 待办 / 习惯。
-//  · 待买从主档降为「更多」菜单里的次级入口（不占一排 tab）
-//  · 勾选框统一 48×48（原来 40×40），满足最小触控 + 视觉留白
-//  · 新增走底部 BottomSheet（原来内联卡片会顶起列表、遮挡底栏）
-//  · 列表改 FlatList，几百条待办不再一次性渲染
-//  · 删除/切换都有撤销 Snackbar
+// §七 计划页四档：日历（默认落地，合并「今日」视图）/ 待办 / 待买 / 习惯。
+//  · 日历置顶并作为默认落地页；选中「今天」时详情区同时展示当日任务 + 今日习惯，替代原独立 today 模块
+//  · 待买为四档之一（仍可在「更多」菜单次级入口快速进入）
+//  · 勾选框统一 48×48（满足最小触控 + 视觉留白），四档行式一致
+//  · 新增走底部 BottomSheet；列表改 FlatList，几百条数据不再一次性渲染
+//  · 删除/切换都有撤销 Snackbar；分段标题统一中性灰，遵循 Notion 克制的层级语言
 type Row =
   | { kind: 'section'; id: string; title: string; color: string; icon?: string }
   | { kind: 'task'; id: string; task: Task }
@@ -86,18 +86,18 @@ export default function TasksScreen() {
   const { t } = useI18n();
   const d = useData();
   const route = useRoute<any>();
-  const initialSeg: Seg = route?.params?.seg === 'todo' || route?.params?.seg === 'habit' || route?.params?.seg === 'shopping' || route?.params?.seg === 'calendar'
-    ? route.params.seg
-    : 'today';
+  const resolveSeg = (raw: unknown): Seg => {
+    if (raw === 'calendar' || raw === 'todo' || raw === 'shopping' || raw === 'habit') return raw as Seg;
+    return 'calendar'; // 默认落在日历（含「今日」视图）
+  };
+  const initialSeg: Seg = resolveSeg(route?.params?.seg);
   const [seg, setSeg] = useState<Seg>(initialSeg);
 
   // Sync segment from route params on every navigation (stack reuses mounted instance)
   const segRef = useRef(seg);
   segRef.current = seg;
   useEffect(() => {
-    const next: Seg = route?.params?.seg === 'todo' || route?.params?.seg === 'habit' || route?.params?.seg === 'shopping' || route?.params?.seg === 'calendar'
-      ? route.params.seg
-      : 'today';
+    const next = resolveSeg(route?.params?.seg);
     if (next !== segRef.current) {
       setSeg(next);
     }
@@ -195,11 +195,10 @@ export default function TasksScreen() {
           }}
         >
           {([
-            { key: 'today', label: t('plan.segToday') },
+            { key: 'calendar', label: t('plan.segCalendar') },
             { key: 'todo', label: t('plan.segTodo') },
             { key: 'shopping', label: t('plan.segShopping') },
             { key: 'habit', label: t('plan.segHabit') },
-            { key: 'calendar', label: t('plan.segCalendar') },
           ] as const).map((s) => {
             const isA = s.key === seg;
             return (
@@ -220,19 +219,7 @@ export default function TasksScreen() {
         </View>
       </View>
 
-      {seg === 'today' && (
-        <TodayFocus
-          tasks={d.tasks}
-          habits={d.habits}
-          today={today}
-          onToggleTask={toggleTask}
-          onToggleHabit={toggleHabit}
-          onDeleteTask={deleteTask}
-          onDeleteHabit={deleteHabit}
-          confirmDelete={confirmDelete}
-          bottomInset={bottomInset}
-        />
-      )}
+      {/* 「今日」模块已合并进 CalendarSub：选中「今天」时日历详情区同时展示当日任务 + 今日习惯 */}
       {seg === 'todo' && (
         <TodoSub
           tasks={d.tasks}
@@ -270,9 +257,12 @@ export default function TasksScreen() {
       {seg === 'calendar' && (
         <CalendarSub
           tasks={d.tasks}
+          habits={d.habits}
           today={today}
           onToggle={toggleTask}
           onDelete={deleteTask}
+          onToggleHabit={toggleHabit}
+          onDeleteHabit={deleteHabit}
           confirmDelete={confirmDelete}
           bottomInset={bottomInset}
         />
@@ -349,74 +339,9 @@ function CheckCircle({
 }
 
 /* ------------------------------------------------------------------ */
-/* 今天：今日待办（勾选）+ 今日习惯（打卡），一张 FlatList 串起来          */
+/* 「今日」模块已合并进 CalendarSub：当选中日期为今天时，日历详情区同时   */
+/* 展示当日任务（byDate[today]）+ 今日习惯（HabitRow 列表），不再单列。    */
 /* ------------------------------------------------------------------ */
-
-function TodayFocus({
-  tasks,
-  habits,
-  today,
-  onToggleTask,
-  onToggleHabit,
-  onDeleteTask,
-  onDeleteHabit,
-  confirmDelete,
-  bottomInset,
-}: {
-  tasks: Task[];
-  habits: Habit[];
-  today: string;
-  onToggleTask: (t: Task) => void;
-  onToggleHabit: (h: Habit) => void;
-  onDeleteTask: (t: Task) => void;
-  onDeleteHabit: (h: Habit) => void;
-  confirmDelete: (name: string, fn: () => void) => void;
-  bottomInset: number;
-}) {
-  const { theme } = useTheme();
-  const { t } = useI18n();
-
-  const todayTasks = tasks.filter(
-    (x) => !x.completed && classifySchedule(x.date, x.completed, today) === 'today'
-  );
-
-  const rows: Row[] = [];
-  if (todayTasks.length > 0) {
-    rows.push({ kind: 'section', id: 'sec-tasks', title: t('plan.todayTasks'), color: theme.primary, icon: ICONS.today });
-    todayTasks.forEach((task) => rows.push({ kind: 'task', id: task.id, task }));
-  }
-  if (habits.length > 0) {
-    rows.push({ kind: 'section', id: 'sec-habits', title: t('plan.todayHabits'), color: theme.onSurfaceVariant, icon: ICONS.habit });
-    habits.forEach((h) => rows.push({ kind: 'habit', id: h.id, habit: h }));
-  }
-  if (rows.length === 0) {
-    rows.push({ kind: 'empty', id: 'empty', icon: ICONS.tasks, title: t('plan.todayEmpty'), hint: t('plan.todayEmptyHint') });
-  }
-
-  return (
-    <FlatList
-      data={rows}
-      keyExtractor={(r) => r.id}
-      renderItem={({ item }) => {
-        if (item.kind === 'section') return <SectionLabel text={item.title} color={item.color} icon={item.icon} />;
-        if (item.kind === 'empty') {
-          return (
-            <View style={{ marginTop: space.xl }}>
-              <EmptyState icon={item.icon} title={item.title} hint={item.hint} />
-            </View>
-          );
-        }
-        if (item.kind === 'task') {
-          return <TaskRow task={item.task} onToggle={onToggleTask} onDelete={onDeleteTask} confirmDelete={confirmDelete} />;
-        }
-        return <HabitRow habit={item.habit} today={today} onToggle={onToggleHabit} onDelete={onDeleteHabit} confirmDelete={confirmDelete} />;
-      }}
-      contentContainerStyle={{ paddingHorizontal: pageMargin, paddingTop: space.sm, paddingBottom: bottomInset }}
-      keyboardShouldPersistTaps="handled"
-      initialNumToRender={12}
-    />
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /* 待办：逾期 / 今天 / 即将到来，按组排列                                  */
@@ -470,7 +395,7 @@ function TodoSub({
       data={rows}
       keyExtractor={(r) => r.id}
       renderItem={({ item }) => {
-        if (item.kind === 'section') return <SectionLabel text={item.title} color={item.color} icon={item.icon} />;
+        if (item.kind === 'section') return <SectionLabel text={item.title} icon={item.icon} />;
         if (item.kind === 'empty') {
           return (
             <View style={{ marginTop: space.xl }}>
@@ -544,16 +469,22 @@ function HabitSub({
 
 function CalendarSub({
   tasks,
+  habits,
   today,
   onToggle,
   onDelete,
+  onToggleHabit,
+  onDeleteHabit,
   confirmDelete,
   bottomInset,
 }: {
   tasks: Task[];
+  habits: Habit[];
   today: string;
   onToggle: (t: Task) => void;
   onDelete: (t: Task) => void;
+  onToggleHabit: (h: Habit) => void;
+  onDeleteHabit: (h: Habit) => void;
   confirmDelete: (name: string, fn: () => void) => void;
   bottomInset: number;
 }) {
@@ -668,8 +599,11 @@ function CalendarSub({
         })}
       </View>
 
+      {/* Notion 风格：日历网格与当日明细之间加一条极细分隔线，统一层级节奏 */}
+      <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.divider, marginTop: space.md, marginBottom: 2 }} />
+
       <View style={{ marginTop: space.lg }}>
-        <SectionLabel text={t('plan.calTasksOnDay')} color={theme.onSurfaceVariant} icon={ICONS.calendar} />
+        <SectionLabel text={t('plan.calTasksOnDay')} icon={ICONS.calendar} />
         {selHasTasks ? (
           selList.map((task) => (
             <TaskRow key={task.id} task={task} onToggle={onToggle} onDelete={onDelete} confirmDelete={confirmDelete} />
@@ -680,15 +614,33 @@ function CalendarSub({
           </View>
         )}
       </View>
+
+      {/* 合并「今日」模块：当选中日期为今天时，详情区追加今日习惯列表 */}
+      {sel === today && habits.length > 0 && (
+        <View style={{ marginTop: space.lg }}>
+          <SectionLabel text={t('plan.todayHabits')} icon={ICONS.habit} />
+          {habits.map((h) => (
+            <HabitRow
+              key={h.id}
+              habit={h}
+              today={today}
+              onToggle={onToggleHabit}
+              onDelete={onDeleteHabit}
+              confirmDelete={confirmDelete}
+            />
+          ))}
+        </View>
+      )}
     </ScrollView>
   );
 }
 
-function SectionLabel({ text, color, icon }: { text: string; color: string; icon?: string }) {
+function SectionLabel({ text, icon }: { text: string; icon?: string }) {
+  const { theme } = useTheme();
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4, marginTop: 10 }}>
-      {icon ? <Icon name={icon} size={16} color={color} /> : null}
-      <M3Text role="labelLarge" color={color}>
+      {icon ? <Icon name={icon} size={16} color={theme.onSurfaceVariant} /> : null}
+      <M3Text role="labelLarge" color={theme.onSurfaceVariant}>
         {text}
       </M3Text>
     </View>

@@ -8,7 +8,7 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 6, PATCH: 0 } as const;
+export const APP_VERSION = { MAJOR: 2, MINOR: 6, PATCH: 1 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.0.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.0.0"
@@ -19,7 +19,16 @@ export const BUILD_DATE = '2026-08-30';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.6.0 — 2026-08-30
+export const RELEASE_NOTES = `V2.6.1 — 2026-08-30
+计划页分段重构 + Notion 风格打磨（功能小版本）：
+
+· 计划页分段由 5 档收敛为 4 档，顺序固定为：日历 / 待办 / 待买 / 习惯；「日历」置顶并作为默认落地页
+· 合并「今日」小模块：选中日期为「今天」时，日历详情区同时展示当日任务与「今日习惯」列表，不再单列 today 档
+· 四档行式统一为 [48dp 勾选圈] + [标题/副信息] + [删除] 的 Notion 式克制行，抵消原先占用一行/两行参差的问题
+· 分段标题统一中性灰（onSurfaceVariant），并新增日历网格与当日明细之间的极细分隔线，层级节奏一致
+· 纯展示层改动：直接复用 Task[] / Habit[]，不新增存储、不改写入规则、不动 SCHEMA_VERSION（仍为 2）
+
+V2.6.0 — 2026-08-30
 计划页新增「日历 / 月视图」（功能小版本）：
 
 · 计划页新增第 5 档「日历」：以月视图集中浏览当月所有日程，一眼看清哪些天有安排
