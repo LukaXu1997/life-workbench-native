@@ -7,6 +7,7 @@ import {
   TextInput,
   ScrollView,
   StyleSheet,
+  Switch,
 } from 'react-native';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useTheme } from '../theme-context';
@@ -39,6 +40,15 @@ import {
   canSubmitSchedule,
   initialScheduleForm,
 } from '../uiTasks';
+import {
+  scheduleTaskReminder,
+  cancelTaskReminder,
+  ensureReminderPermission,
+  scheduleHabitReminder,
+  cancelHabitReminder,
+  LEAD_OPTIONS,
+  leadLabel,
+} from '../reminder';
 
 // ---- date/time helpers for native pickers (store format: YYYY-MM-DD / HH:MM) ----
 function parseDate(s: string): Date {
@@ -212,7 +222,9 @@ export default function TasksScreen() {
     const completing = !t2.completed;
     const list = await store.getTasks();
     await store.setTasks(list.map((x) => (x.id === t2.id ? { ...x, completed: !x.completed } : x)));
-    // 重复任务：完成时自动生成下一笔
+    // 提醒（V2.12.0）：任务完成即取消其本地通知
+    if (completing) await cancelTaskReminder(t2.id);
+    // 重复任务：完成时自动生成下一笔（提醒为相对提前量，下一笔自动按自身时间重算）
     if (completing && t2.repeat && t2.repeat !== 'none') {
       const nextDate = addPeriod(t2.date, t2.repeat);
       const nextSubs = (t2.subtasks || []).map((s) => ({ ...s, done: false }));
@@ -221,18 +233,22 @@ export default function TasksScreen() {
         priority: t2.priority, category: t2.category, note: t2.note,
         completed: false, createdAt: Date.now(), repeat: t2.repeat,
         ...(nextSubs.length > 0 ? { subtasks: nextSubs } : {}),
+        ...(t2.reminder != null ? { reminder: t2.reminder } : {}),
       };
       const updated = await store.getTasks();
       await store.setTasks([...updated, nextTask]);
+      if (t2.reminder != null) await scheduleTaskReminder(nextTask);
       showUndo(t('plan.generatedNextRecurring'), async () => {
         const l = await store.getTasks();
         await store.setTasks(l.filter((x) => x.id !== nextTask.id));
+        if (t2.reminder != null && !t2.completed) await scheduleTaskReminder(t2); // 撤销生成则恢复原任务提醒
       });
       return;
     }
     showUndo(prev.completed ? t('plan.toggleUndone') : t('plan.toggleDone'), async () => {
       const l = await store.getTasks();
       await store.setTasks(l.map((x) => (x.id === t2.id ? prev : x)));
+      if (prev.reminder != null && !prev.completed) await scheduleTaskReminder(prev); // 撤销完成则恢复提醒
     });
   };
   const toggleHabit = async (h: Habit) => {
@@ -271,7 +287,11 @@ export default function TasksScreen() {
   const deleteTask = async (t2: Task) => {
     const prev = await store.getTasks();
     await store.setTasks(prev.filter((x) => x.id !== t2.id));
-    showUndo(t('plan.deletedTask'), async () => { await store.setTasks(prev); });
+    await cancelTaskReminder(t2.id); // 提醒（V2.12.0）：删除即取消本地通知
+    showUndo(t('plan.deletedTask'), async () => {
+      await store.setTasks(prev);
+      if (t2.reminder != null && !t2.completed) await scheduleTaskReminder(t2); // 撤销删除则恢复提醒
+    });
   };
 
   // ——— 子任务（Subtasks）：纯派生字段，向后兼容，不动 SCHEMA ———
@@ -344,25 +364,40 @@ export default function TasksScreen() {
   const toggleSelectAll = () =>
     setSelectedIds(allSelected ? new Set() : new Set(selectableIds));
 
-  /** 批量操作统一入口：拿到变更前的完整列表 → 走 store.setTasks → 挂撤销 */
+  /** 批量操作统一入口：拿到变更前的完整列表 → 走 store.setTasks → 挂撤销
+   *  reminderIds：本次被完成/删除的任务 id，用于同步取消其本地提醒（V2.12.0） */
   const runBatch = async (
     mutate: (list: Task[]) => Task[],
     msg: string,
+    reminderIds?: string[],
   ) => {
     const prev = await store.getTasks();
-    await store.setTasks(mutate(prev));
-    showUndo(msg, async () => { await store.setTasks(prev); });
+    const next = mutate(prev);
+    await store.setTasks(next);
+    if (reminderIds) for (const id of reminderIds) await cancelTaskReminder(id);
+    showUndo(msg, async () => {
+      await store.setTasks(prev);
+      // 撤销后恢复对应提醒（仅未完成的任务）
+      if (reminderIds) {
+        for (const id of reminderIds) {
+          const t0 = prev.find((x) => x.id === id);
+          if (t0?.reminder != null && !t0.completed) await scheduleTaskReminder(t0);
+        }
+      }
+    });
     exitSelect();
   };
   const batchComplete = () =>
     runBatch(
       (list) => list.map((x) => (effectiveSelected.has(x.id) ? { ...x, completed: true } : x)),
       t('plan.batchCompleted', { count: selectedCount }),
+      [...effectiveSelected],
     );
   const batchDelete = () =>
     runBatch(
       (list) => list.filter((x) => !effectiveSelected.has(x.id)),
       t('plan.batchDeleted', { count: selectedCount }),
+      [...effectiveSelected],
     );
   const applyBatchTag = (tag: string) => {
     const clean = tag.trim();
@@ -413,6 +448,8 @@ export default function TasksScreen() {
       if (toGenerate.length > 0 && !cancelled) {
         const current = await store.getTasks();
         await store.setTasks([...current, ...toGenerate]);
+        // 提醒（V2.13.0）：同步为新生成的重复任务排程提醒（相对提前量随实例时间自动重算）
+        for (const g of toGenerate) if (g.reminder != null) await scheduleTaskReminder(g);
       }
     })();
     return () => { cancelled = true; };
@@ -1548,8 +1585,17 @@ function ScheduleForm({ today, onClose }: { today: string; onClose: () => void }
   const [busy, setBusy] = useState(false);
   const [tags, setTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
+  // 提醒（V2.13.0）：相对提前量，仅创建时设置
+  const [reminderOn, setReminderOn] = useState(false);
+  const [reminderLead, setReminderLead] = useState<number>(30); // 提前分钟数
   const titleRef = useRef<TextInput>(null);
   const titleValid = canSubmitSchedule(title);
+  const reminderInPast =
+    reminderOn &&
+    (() => {
+      const w = new Date(`${date}T${time || '09:00'}`);
+      return !isNaN(w.getTime()) && w.getTime() <= Date.now();
+    })();
 
   const fieldStyle = {
     paddingVertical: 10,
@@ -1566,14 +1612,27 @@ function ScheduleForm({ today, onClose }: { today: string; onClose: () => void }
   }, []);
 
   const submit = async () => {
-    if (busy || !canSubmitSchedule(title)) return;
+    if (busy || !canSubmitSchedule(title) || reminderInPast) return;
     setBusy(true);
     try {
       const list = await store.getTasks();
-      await store.setTasks([
-        ...list,
-        { id: uid('t'), title: title.trim(), date, time, priority, category, note: '', completed: false, createdAt: Date.now(), repeat: repeat !== 'none' ? repeat : undefined, ...(tags.length > 0 ? { tags } : {}) },
-      ]);
+      const reminder = reminderOn ? reminderLead : undefined;
+      const newTask: Task = {
+        id: uid('t'),
+        title: title.trim(),
+        date,
+        time,
+        priority,
+        category,
+        note: '',
+        completed: false,
+        createdAt: Date.now(),
+        repeat: repeat !== 'none' ? repeat : undefined,
+        ...(tags.length > 0 ? { tags } : {}),
+        ...(reminder != null ? { reminder } : {}),
+      };
+      await store.setTasks([...list, newTask]);
+      if (reminder != null) await scheduleTaskReminder(newTask);
       onClose();
     } finally {
       setBusy(false);
@@ -1600,6 +1659,59 @@ function ScheduleForm({ today, onClose }: { today: string; onClose: () => void }
       </View>
       {showDate && <DateTimePicker mode="date" value={parseDate(date)} onChange={(e, sel) => { setShowDate(false); if (e.type === 'set' && sel) setDate(fmtDate(sel)); }} />}
       {showTime && <DateTimePicker mode="time" value={parseTime(time)} onChange={(e, sel) => { setShowTime(false); if (e.type === 'set' && sel) setTime(fmtTime(sel)); }} />}
+      {/* 提醒（V2.12.0）：仅创建时设置 */}
+      <View style={{ marginTop: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <M3Text role="labelMedium" color={theme.onSurfaceVariant}>{t('plan.reminder')}</M3Text>
+          <Switch
+            value={reminderOn}
+            onValueChange={async (v) => {
+              if (v) {
+                const ok = await ensureReminderPermission();
+                if (!ok) {
+                  Alert.alert(t('plan.reminderPermissionDenied'));
+                  return;
+                }
+                if (!time) setTime('09:00'); // 无时间则默认 09:00，仍可改
+                setReminderLead(30);
+              }
+              setReminderOn(v);
+            }}
+            trackColor={{ false: theme.divider, true: theme.primaryContainer }}
+            thumbColor={reminderOn ? theme.primary : theme.onSurfaceVariant}
+            style={{ transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }] }}
+          />
+        </View>
+        {reminderOn && (
+          <>
+            <M3Text role="labelSmall" color={theme.onSurfaceVariant} style={{ marginTop: 8 }}>{t('plan.reminderLead')}</M3Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 }}>
+              {LEAD_OPTIONS.map((opt) => (
+                <TouchableOpacity
+                  key={opt}
+                  onPress={() => setReminderLead(opt)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: reminderLead === opt }}
+                  style={{
+                    paddingVertical: 8,
+                    paddingHorizontal: 14,
+                    borderRadius: radius.md,
+                    backgroundColor: reminderLead === opt ? theme.primary : theme.surfaceContainer,
+                  }}
+                >
+                  <M3Text role="labelLarge" color={reminderLead === opt ? theme.onPrimary : theme.onSurfaceVariant}>
+                    {leadLabel(opt)}
+                  </M3Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <M3Text role="labelSmall" color={theme.onSurfaceVariant} style={{ marginTop: 8 }}>{t('plan.reminderHint')}</M3Text>
+            {reminderInPast && (
+              <M3Text role="labelMedium" color={theme.error} style={{ marginTop: 4 }}>{t('plan.reminderPast')}</M3Text>
+            )}
+          </>
+        )}
+      </View>
       <M3Text role="labelMedium" color={theme.onSurfaceVariant} style={{ marginTop: 12, marginBottom: 6 }}>{t('plan.priorityLabel')}</M3Text>
       <View style={{ flexDirection: 'row', gap: 8 }}>
         {(['P0', 'P1', 'P2'] as const).map((p) => (
@@ -1662,7 +1774,7 @@ function ScheduleForm({ today, onClose }: { today: string; onClose: () => void }
         </View>
       </View>
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
-        <PrimaryButton label={busy ? t('common.processing') : t('common.add')} onPress={submit} disabled={!titleValid || busy} style={{ flex: 1 }} />
+        <PrimaryButton label={busy ? t('common.processing') : t('common.add')} onPress={submit} disabled={!titleValid || busy || reminderInPast} style={{ flex: 1 }} />
         <Button label={t('common.cancel')} variant="text" onPress={onClose} style={{ flex: 1 }} />
       </View>
     </View>
@@ -1676,7 +1788,20 @@ function HabitForm({ onClose }: { onClose: () => void }) {
   const [type, setType] = useState<HabitType>('check');
   const [target, setTarget] = useState('1');
   const [busy, setBusy] = useState(false);
+  // 习惯每日提醒（V2.13.0）
+  const [reminderOn, setReminderOn] = useState(false);
+  const [reminderTime, setReminderTime] = useState('09:00');
+  const [showReminderTime, setShowReminderTime] = useState(false);
   const nameRef = useRef<TextInput>(null);
+
+  const fieldStyle = {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.divider,
+    borderRadius: radius.md,
+    backgroundColor: theme.surfaceContainer,
+  };
 
   useEffect(() => {
     const id = setTimeout(() => nameRef.current?.focus(), 50);
@@ -1688,10 +1813,18 @@ function HabitForm({ onClose }: { onClose: () => void }) {
     setBusy(true);
     try {
       const list = await store.getHabits();
-      await store.setHabits([
-        ...list,
-        { id: uid('h'), name: name.trim(), type, target: type === 'check' ? 1 : Number(target) || 1, unit: '', records: {}, createdAt: Date.now() },
-      ]);
+      const newHabit: Habit = {
+        id: uid('h'),
+        name: name.trim(),
+        type,
+        target: type === 'check' ? 1 : Number(target) || 1,
+        unit: '',
+        records: {},
+        createdAt: Date.now(),
+        ...(reminderOn ? { reminderTime } : {}),
+      };
+      await store.setHabits([...list, newHabit]);
+      if (reminderOn) await scheduleHabitReminder(newHabit);
       onClose();
     } finally {
       setBusy(false);
@@ -1716,6 +1849,40 @@ function HabitForm({ onClose }: { onClose: () => void }) {
           <TextField label={t('plan.dailyGoal')} value={target} onChangeText={setTarget} keyboardType="numeric" placeholder="8" />
         </View>
       )}
+      {/* 习惯每日提醒（V2.13.0） */}
+      <View style={{ marginTop: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <M3Text role="labelMedium" color={theme.onSurfaceVariant}>{t('plan.habitReminder')}</M3Text>
+          <Switch
+            value={reminderOn}
+            onValueChange={async (v) => {
+              if (v) {
+                const ok = await ensureReminderPermission();
+                if (!ok) {
+                  Alert.alert(t('plan.reminderPermissionDenied'));
+                  return;
+                }
+              }
+              setReminderOn(v);
+            }}
+            trackColor={{ false: theme.divider, true: theme.primaryContainer }}
+            thumbColor={reminderOn ? theme.primary : theme.onSurfaceVariant}
+            style={{ transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }] }}
+          />
+        </View>
+        {reminderOn && (
+          <>
+            <M3Text role="labelSmall" color={theme.onSurfaceVariant} style={{ marginTop: 8 }}>{t('plan.habitReminderHint')}</M3Text>
+            <TouchableOpacity onPress={() => setShowReminderTime(true)} accessibilityRole="button" accessibilityLabel={t('plan.reminderTime')} style={[fieldStyle, { marginTop: 8 }]}>
+              <M3Text role="labelMedium" color={theme.onSurfaceVariant}>{t('plan.reminderTime')}</M3Text>
+              <M3Text role="bodyLarge">{reminderTime}</M3Text>
+            </TouchableOpacity>
+            {showReminderTime && (
+              <DateTimePicker mode="time" value={parseTime(reminderTime)} onChange={(e, sel) => { setShowReminderTime(false); if (e.type === 'set' && sel) setReminderTime(fmtTime(sel)); }} />
+            )}
+          </>
+        )}
+      </View>
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
         <PrimaryButton label={busy ? t('common.processing') : t('common.add')} onPress={submit} disabled={!name.trim() || busy} style={{ flex: 1 }} />
         <Button label={t('common.cancel')} variant="text" onPress={onClose} style={{ flex: 1 }} />

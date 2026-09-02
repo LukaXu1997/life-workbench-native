@@ -111,6 +111,7 @@ export interface Habit {
   unit: string;
   records: Record<string, number>; // date(YYYY-MM-DD) -> value (0/1 for check)
   createdAt: number;
+  reminderTime?: string; // optional — backward compatible; daily reminder at 'HH:MM'; absent/'' = no reminder (V2.13.0)
 }
 
 export type Priority = 'P0' | 'P1' | 'P2';
@@ -133,6 +134,7 @@ export interface Task {
   subtasks?: SubTask[]; // optional — backward compatible; absent = no subtasks
   repeat?: RepeatFrequency; // optional — backward compatible; absent/none = one-off task
   tags?: string[]; // optional — backward compatible; absent/empty = no tags (V2.10.0)
+  reminder?: number; // optional — backward compatible; lead minutes BEFORE task time: 0=on time, 15/30/60/120/180, 1440=1 day; absent = no reminder (V2.13.0)
 }
 
 export type ShopPriority = '高' | '中' | '低';

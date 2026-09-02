@@ -25,6 +25,9 @@ type TranslateFn = (scope: string, options?: Record<string, any>) => string;
 
 const translate: TranslateFn = (scope, options) => i18n.t(scope, options);
 
+/** Module-level translator for non-component code (e.g. notification scheduling). */
+export const t = translate;
+
 type I18nCtx = {
   t: TranslateFn;
   lang: LangMode;

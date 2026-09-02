@@ -38,6 +38,9 @@ import { generateRecurring } from './src/recurring';
 import { OnboardingWizard } from './src/components/OnboardingWizard';
 import { BiometricGate } from './src/components/BiometricGate';
 import { setSecureWindow } from './src/secureWindow';
+import * as Notifications from 'expo-notifications';
+import { ensureNotificationChannels, ensureNotificationHandler, rescheduleAll } from './src/reminder';
+import { rootNavigate } from './src/navigationRef';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // §二 导航结构
@@ -195,6 +198,22 @@ function Root() {
     })();
   }, []);
 
+  // V2.13.0 — reminders: install the notification handler, create the Android
+  // channels (task-reminders + habit-reminders), and re-sync every scheduled
+  // reminder from the current task + habit stores.
+  // Runs once on cold start; foreground re-sync is handled by the AppState listener below.
+  useEffect(() => {
+    ensureNotificationHandler();
+    (async () => {
+      try {
+        await ensureNotificationChannels();
+        await rescheduleAll();
+      } catch {
+        /* best-effort; never block launch */
+      }
+    })();
+  }, []);
+
   // Edge-to-edge is enabled natively by react-native-edge-to-edge (it makes both
   // the status & navigation bars transparent on host resume). Here we only drive
   // the *icon contrast* of the bars from the app theme. We deliberately do NOT
@@ -221,13 +240,23 @@ function Root() {
     const off = ensureReceiverStarted();
     routePendingIntents();
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'active') { startNotifyReceiver(); routePendingIntents(); }
+      if (state === 'active') {
+        startNotifyReceiver();
+        routePendingIntents();
+        // V2.13.0 — re-sync reminders (tasks + habits) when returning to the foreground.
+        rescheduleAll().catch(() => {});
+      }
     });
     const sub2 = DeviceEventEmitter.addListener('quickAddIntent', () => routePendingIntents());
     // Re-running onboarding from Settings flips the first-launch flag back to false,
     // which re-shows the wizard overlay (see Root's `onboarded === false` render).
     const sub3 = DeviceEventEmitter.addListener('rerunOnboarding', () => setOnboarded(false));
-    return () => { off(); sub.remove(); sub2.remove(); sub3.remove(); };
+    // V2.13.0 — tapping a task/habit reminder opens the Plan tab.
+    const sub4 = Notifications.addNotificationResponseReceivedListener((response) => {
+      const id = response.notification.request.identifier;
+      if (id.startsWith('task-') || id.startsWith('habit-')) rootNavigate('MainTabs', { screen: '计划' });
+    });
+    return () => { off(); sub.remove(); sub2.remove(); sub3.remove(); sub4.remove(); };
   }, [routePendingIntents]);
 
   // Privacy mask: keep an opaque theme background covering the screen while the app

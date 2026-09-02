@@ -10,6 +10,21 @@
 
 ---
 
+## V2.13.0 — 2026-09-02
+
+提醒升级：相对提前量 + 习惯每日提醒（功能小版本，复用 expo-notifications，SCHEMA_VERSION 仍为 2）：
+
+- 任务提醒改为「相对提前量」：开启后从 准时 / 15分钟前 / 30分钟前 / 1小时前 / 2小时前 / 3小时前 / 1天前 中选择，实际提醒时刻 = 任务时间 − 提前量（运行时计算）
+- 重复任务零成本顺延：存的是提前分钟数而非绝对时刻，下一笔实例用自己的日期/时间自动重算，无需手动顺延逻辑
+- 无时间任务自动 09:00：开启提醒但任务没有时间时，时间默认填 09:00（仍可改）
+- 习惯新增「每天几点提醒」：新建习惯（HabitForm）与习惯详情（HabitDetailScreen）均可设置/修改/关闭每日提醒，走独立 habit-reminders 渠道
+- 双通知渠道：task-reminders（任务，蓝）/ habit-reminders（习惯，绿），均 Android 8+ 渠道，可单独管理
+- 完成即取消：任务完成 / 删除 / 批量完成时自动取消本地提醒，撤销恢复对应提醒；习惯提醒随开关实时增删
+- 点击跳转：点按 task-* / habit-* 通知均跳转「计划」tab
+- 权限友好：开启提醒时按需请求 POST_NOTIFICATIONS 权限，被拒则提示并放弃该提醒（数据仍保留）
+- 全量 CN/EN i18n：reminder / reminderLead / lead0~lead1440 / reminderTime / reminderHint / reminderPast / reminderPermissionDenied / reminderScheduled / reminderAt / habitReminder / habitReminderHint / habitReminderBody 共 16 条
+- 纯可选字段：Task.reminder 改为可选 number（提前分钟数，空=不提醒），Habit.reminderTime 为可选 string（'HH:MM'，空=不提醒），旧数据仍正常（向后兼容），SCHEMA_VERSION 仍为 2
+
 ## V2.11.0 — 2026-08-30
 
 任务批量操作（功能小版本，零新增依赖）：

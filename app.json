@@ -2,7 +2,7 @@
   "expo": {
     "name": "生活工作台",
     "slug": "life-workbench",
-  "version": "2.11.0",
+  "version": "2.13.0",
   "orientation": "portrait",
   "scheme": "lifeworkbench",
   "userInterfaceStyle": "automatic",
@@ -10,7 +10,7 @@
   "icon": "./assets/icon.png",
   "android": {
     "package": "com.luka.lifeworkbench",
-    "versionCode": 21100,
+    "versionCode": 21300,
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon-foreground.png",
         "backgroundColor": "#FFFFFF"
@@ -33,7 +33,8 @@
       "expo-asset",
       "expo-font",
       "expo-localization",
-      "expo-image-picker"
+      "expo-image-picker",
+      "expo-notifications"
     ],
   }
 }

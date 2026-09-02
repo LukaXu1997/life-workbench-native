@@ -8,18 +8,32 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 11, PATCH: 0 } as const;
+export const APP_VERSION = { MAJOR: 2, MINOR: 13, PATCH: 0 } as const;
 
-export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.0.0"
-export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.0.0"
-export const VERSION_CODE = APP_VERSION.MAJOR * 10000 + APP_VERSION.MINOR * 100 + APP_VERSION.PATCH; // 21100
+export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.13.0"
+export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.13.0"
+export const VERSION_CODE = APP_VERSION.MAJOR * 10000 + APP_VERSION.MINOR * 100 + APP_VERSION.PATCH; // 21300
 
 // Set on each release.
-export const BUILD_DATE = '2026-08-30';
+export const BUILD_DATE = '2026-09-02';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.11.0 — 2026-08-30
+export const RELEASE_NOTES = `V2.13.0 — 2026-09-02
+提醒升级：相对提前量 + 习惯每日提醒（功能小版本，复用 expo-notifications，SCHEMA_VERSION 仍为 2）：
+
+· 任务提醒改为「相对提前量」：开启后从 准时 / 15分钟前 / 30分钟前 / 1小时前 / 2小时前 / 3小时前 / 1天前 中选择，实际提醒时刻 = 任务时间 − 提前量（运行时计算）
+· 重复任务零成本顺延：存的是提前分钟数而非绝对时刻，下一笔实例用自己的日期/时间自动重算，无需手动顺延逻辑
+· 无时间任务自动 09:00：开启提醒但任务没有时间时，时间默认填 09:00（仍可改）
+· 习惯新增「每天几点提醒」：新建习惯（HabitForm）与习惯详情（HabitDetailScreen）均可设置/修改/关闭每日提醒，走独立 habit-reminders 渠道
+· 双通知渠道：task-reminders（任务，蓝）/ habit-reminders（习惯，绿），均 Android 8+ 渠道，可单独管理
+· 完成即取消：任务完成 / 删除 / 批量完成时自动取消本地提醒，撤销恢复对应提醒；习惯提醒随开关实时增删
+· 点击跳转：点按 task-* / habit-* 通知均跳转「计划」tab
+· 权限友好：开启提醒时按需请求 POST_NOTIFICATIONS 权限，被拒则提示并放弃该提醒（数据仍保留）
+· 全量 CN/EN i18n：reminder / reminderLead / lead0~lead1440 / reminderTime / reminderHint / reminderPast / reminderPermissionDenied / reminderScheduled / reminderAt / habitReminder / habitReminderHint / habitReminderBody 共 16 条
+· 纯可选字段：Task.reminder 改为可选 number（提前分钟数，空=不提醒），Habit.reminderTime 为可选 string（'HH:MM'，空=不提醒），旧数据仍正常（向后兼容），SCHEMA_VERSION 仍为 2
+
+V2.11.0 — 2026-08-30
 任务批量操作（功能小版本，零新增依赖，SCHEMA_VERSION 仍为 2）：
 
 · 待办多选模式：待办页新增「选择」入口，点按进入多选；勾选圈由圆形切换为方形（checkbox 语义），整行可点选中，选中行高亮

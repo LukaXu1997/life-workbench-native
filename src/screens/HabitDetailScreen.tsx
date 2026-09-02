@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Switch, Alert, TouchableOpacity } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { useTheme } from '../theme-context';
 import { useI18n } from '../i18n';
@@ -7,9 +8,24 @@ import { store, onChange, todayStr } from '../store';
 import { ScreenHeader, IconButton } from '../components/kit';
 import { M3Text } from '../components/ui';
 import { ICONS } from '../icons';
-import { space, pageMargin } from '../tokens';
+import { space, pageMargin, radius } from '../tokens';
 import { useBottomContentInset } from '../components/layout';
+import { scheduleHabitReminder, cancelHabitReminder, ensureReminderPermission } from '../reminder';
 import type { Habit } from '../types';
+
+/** Parse 'HH:MM' (local) into a Date. Returns today at that time. */
+function parseHm(hm: string): Date {
+  const m = /^(\d{2}):(\d{2})$/.exec(hm || '09:00');
+  const d = new Date();
+  d.setHours(m ? Number(m[1]) : 9, m ? Number(m[2]) : 0, 0, 0);
+  return d;
+}
+/** Format a Date as 'HH:MM'. */
+function fmtHm(d: Date): string {
+  const hh = `${d.getHours()}`.padStart(2, '0');
+  const mm = `${d.getMinutes()}`.padStart(2, '0');
+  return `${hh}:${mm}`;
+}
 
 // ---- pure helpers (no hooks, testable) ----
 
@@ -142,6 +158,10 @@ export default function HabitDetailScreen() {
   const habitId = route.params?.habitId as string;
 
   const [habit, setHabit] = useState<Habit | null>(null);
+  // 习惯每日提醒（V2.13.0）
+  const [reminderOn, setReminderOn] = useState(false);
+  const [reminderTime, setReminderTime] = useState('09:00');
+  const [showReminderTime, setShowReminderTime] = useState(false);
   const [nowYear, setNowYear] = useState(() => {
     const d = new Date();
     return { y: d.getFullYear(), m: d.getMonth() + 1 };
@@ -155,12 +175,33 @@ export default function HabitDetailScreen() {
       if (!mounted) return;
       const h = list.find((x: Habit) => x.id === habitId) || null;
       setHabit(h);
+      setReminderOn(!!h?.reminderTime);
+      setReminderTime(h?.reminderTime || '09:00');
     };
     load();
     // Re-load when habits key changes (another screen toggled)
     const unsub = onChange(() => { load(); });
     return () => { mounted = false; unsub(); };
   }, [habitId]);
+
+  const fieldStyle = {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: theme.divider,
+    borderRadius: radius.md,
+    backgroundColor: theme.surfaceContainer,
+  };
+
+  // Update the habit's daily reminder (set/clear) and re-schedule the notification.
+  const applyReminder = async (on: boolean, hm: string) => {
+    if (!habit) return;
+    const updated: Habit = { ...habit, reminderTime: on ? hm : undefined };
+    const list = await store.getHabits();
+    await store.setHabits(list.map((x) => (x.id === habit.id ? updated : x)));
+    if (on) await scheduleHabitReminder(updated);
+    else await cancelHabitReminder(habit.id);
+  };
 
   const today = todayStr();
 
@@ -298,6 +339,56 @@ export default function HabitDetailScreen() {
             })}
           </View>
         ))}
+      </View>
+
+      {/* 习惯每日提醒（V2.13.0） */}
+      <View style={{
+        paddingHorizontal: pageMargin,
+        paddingVertical: space.lg,
+      }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <M3Text role="labelMedium" color={theme.onSurfaceVariant}>{t('plan.habitReminder')}</M3Text>
+          <Switch
+            value={reminderOn}
+            onValueChange={async (v) => {
+              if (v) {
+                const ok = await ensureReminderPermission();
+                if (!ok) {
+                  Alert.alert(t('plan.reminderPermissionDenied'));
+                  return;
+                }
+              }
+              setReminderOn(v);
+              await applyReminder(v, reminderTime);
+            }}
+            trackColor={{ false: theme.divider, true: theme.primaryContainer }}
+            thumbColor={reminderOn ? theme.primary : theme.onSurfaceVariant}
+            style={{ transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }] }}
+          />
+        </View>
+        {reminderOn && (
+          <>
+            <M3Text role="labelSmall" color={theme.onSurfaceVariant} style={{ marginTop: 8 }}>{t('plan.habitReminderHint')}</M3Text>
+            <TouchableOpacity onPress={() => setShowReminderTime(true)} accessibilityRole="button" accessibilityLabel={t('plan.reminderTime')} style={[fieldStyle, { marginTop: 8 }]}>
+              <M3Text role="labelMedium" color={theme.onSurfaceVariant}>{t('plan.reminderTime')}</M3Text>
+              <M3Text role="bodyLarge">{reminderTime}</M3Text>
+            </TouchableOpacity>
+            {showReminderTime && (
+              <DateTimePicker
+                mode="time"
+                value={parseHm(reminderTime)}
+                onChange={(e, sel) => {
+                  setShowReminderTime(false);
+                  if (e.type === 'set' && sel) {
+                    const hm = fmtHm(sel);
+                    setReminderTime(hm);
+                    applyReminder(true, hm);
+                  }
+                }}
+              />
+            )}
+          </>
+        )}
       </View>
 
       {/* Stats bar */}
