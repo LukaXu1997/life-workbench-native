@@ -8,7 +8,7 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 6, PATCH: 2 } as const;
+export const APP_VERSION = { MAJOR: 2, MINOR: 6, PATCH: 3 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.0.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.0.0"
@@ -19,7 +19,14 @@ export const BUILD_DATE = '2026-08-30';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.6.2 — 2026-08-30
+export const RELEASE_NOTES = `V2.6.3 — 2026-08-30
+Home 勾选控件跨屏统一（视觉一致性，不改逻辑）：
+
+· 将 Home「今日计划」的 24dp 描边勾选 icon 替换为与 Plan 模块（V2.6.1）一致的 48dp 实心勾选圈（CheckCircle）：完成=primaryContainer 实心+check，未完成=surfaceContainer+描边
+· 消除 Home 与 Plan 勾选控件尺寸/风格不一致；Home 四宫格、底部导航、Home 余额等宽数字此前已符合规格，本次未改动
+· 纯展示层改动：未新增存储、未改写入规则、不动 SCHEMA_VERSION（仍为 2）
+
+V2.6.2 — 2026-08-30
 财务 dashboard 细化（视觉/UX 打磨，不改逻辑）：
 
 · 新增统一「洞察条」InsightRow：左中性灰 caption + 右 tabular 值，纵向等距；储蓄率 / 环比上月 / 预算日均可用 三处派生指标统一呈现，消除窄屏 inline 断行参差

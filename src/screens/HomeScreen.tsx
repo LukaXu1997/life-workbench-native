@@ -13,7 +13,7 @@ import { AnimatedBalance, AnimatedListItem, AnimatedPressable, FadeInContent } f
 import { Amount } from '../components/Amount';
 import { useBottomContentInset } from '../components/layout';
 import { Icon, ICONS } from '../icons';
-import { radius, pageMargin, cardGap, space, touchMin } from '../tokens';
+import { radius, pageMargin, cardGap, space } from '../tokens';
 import { useNotifyNav } from '../notify/NotifyNav';
 import { usePendingCount } from '../notify/pendingStore';
 
@@ -454,25 +454,29 @@ export default function HomeScreen({ navigation }: any) {
   /* 5. 今日计划                                                       */
   /* ---------------------------------------------------------------- */
 
+  // 与 Plan 模块（V2.6.1）统一的 48dp 实心勾选圈：完成=primaryContainer 实心+check，未完成=surfaceContainer+描边。
+  // 消除 Home「今日计划」24dp 描边勾选与 Plan 48dp 勾选圈的跨屏尺寸不一致。
   const Checkbox = ({ done, a11y, onPress }: { done: boolean; a11y: string; onPress: () => void }) => (
     <AnimatedPressable
       onPress={onPress}
       accessibilityLabel={a11y}
       accessibilityState={{ checked: done }}
       hitSlop={8}
-      pressScale={0.88}
+      pressScale={0.92}
       style={{
-        minWidth: touchMin,
-        minHeight: touchMin,
-        marginLeft: -space.md,
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: done ? theme.primaryContainer : theme.surfaceContainer,
         alignItems: 'center',
         justifyContent: 'center',
+        marginLeft: -space.md,
       }}
     >
       <Icon
-        name={done ? 'check-circle' : 'checkbox-blank-circle-outline'}
-        size={24}
-        color={done ? theme.primary : theme.outline}
+        name={done ? ICONS.check : 'checkbox-blank-circle-outline'}
+        size={22}
+        color={done ? theme.onPrimaryContainer : theme.onSurfaceVariant}
       />
     </AnimatedPressable>
   );

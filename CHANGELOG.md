@@ -10,6 +10,14 @@
 
 ---
 
+## V2.6.3 — 2026-08-30
+
+Home 勾选控件跨屏统一（视觉一致性，未改动 SCHEMA_VERSION）：
+
+- 将 Home「今日计划」的 24dp 描边勾选 icon 替换为与 Plan 模块（V2.6.1）一致的 48dp 实心勾选圈（CheckCircle）：完成=primaryContainer 实心+check，未完成=surfaceContainer+描边
+- 消除 Home 与 Plan 勾选控件尺寸/风格不一致；Home 四宫格、底部导航、Home 余额等宽数字此前已符合规格，本次未改动
+- 纯展示层改动：未新增存储、未改写入规则、不动 SCHEMA_VERSION（仍为 2）
+
 ## V2.6.2 — 2026-08-30
 
 财务 dashboard 细化（视觉/UX 打磨，未改动 SCHEMA_VERSION）：
