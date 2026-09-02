@@ -132,6 +132,10 @@ function sortTasks(list: Task[], key: SortKey): Task[] {
   }
   return arr;
 }
+function matchesTag(task: Task, tag: string | null): boolean {
+  if (!tag) return true;
+  return (task.tags || []).includes(tag);
+}
 
 type Seg = 'calendar' | 'todo' | 'shopping' | 'habit';
 type UndoState = { msg: string; undo: () => Promise<void> } | null;
@@ -174,6 +178,13 @@ export default function TasksScreen() {
   // 搜索 + 排序（V2.9.0）：待办 / 日历共用，跨分栏保持同步
   const [searchText, setSearchText] = useState('');
   const [sortKey, setSortKey] = useState<SortKey>('date');
+  // 标签筛选（V2.10.0）：待办 / 日历共用，跨分栏保持同步
+  const [activeTag, setActiveTag] = useState<string | null>(null);
+  const allTags = useMemo(() => {
+    const set = new Set<string>();
+    for (const x of d.tasks) (x.tags || []).forEach((tg) => set.add(tg));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [d.tasks]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const today = todayStr();
   const bottomInset = useBottomContentInset(72); // +72 给悬浮 FAB 让位
@@ -393,6 +404,16 @@ export default function TasksScreen() {
               <M3Text role="labelMedium" color={theme.onSurfaceVariant}>{sortLabel(t, sortKey)}</M3Text>
             </TouchableOpacity>
           </View>
+          {allTags.length > 0 && (
+            <View style={{ marginTop: space.xs, flexDirection: 'row', alignItems: 'center' }}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8, paddingRight: 4 }}>
+                <Chip label={t('plan.allTags')} selected={activeTag === null} onPress={() => setActiveTag(null)} />
+                {allTags.map((tg) => (
+                  <Chip key={tg} label={tg} selected={activeTag === tg} onPress={() => setActiveTag(activeTag === tg ? null : tg)} />
+                ))}
+              </ScrollView>
+            </View>
+          )}
         </View>
       )}
 
@@ -403,6 +424,7 @@ export default function TasksScreen() {
           today={today}
           searchText={searchText}
           sortKey={sortKey}
+          activeTag={activeTag}
           onToggle={toggleTask}
           onDelete={deleteTask}
           confirmDelete={confirmDelete}
@@ -443,6 +465,7 @@ export default function TasksScreen() {
           today={today}
           searchText={searchText}
           sortKey={sortKey}
+          activeTag={activeTag}
           onToggle={toggleTask}
           onDelete={deleteTask}
           onToggleHabit={toggleHabit}
@@ -543,6 +566,7 @@ function TodoSub({
   today,
   searchText,
   sortKey,
+  activeTag,
   onToggle,
   onDelete,
   confirmDelete,
@@ -555,6 +579,7 @@ function TodoSub({
   today: string;
   searchText: string;
   sortKey: SortKey;
+  activeTag: string | null;
   onToggle: (t: Task) => void;
   onDelete: (t: Task) => void;
   confirmDelete: (name: string, fn: () => void) => void;
@@ -566,8 +591,8 @@ function TodoSub({
   const { theme } = useTheme();
   const { t } = useI18n();
   const q = searchText.trim();
-  const searching = q.length > 0;
-  const active = tasks.filter((x) => !x.completed && matchesQuery(x, q));
+  const filtering = q.length > 0 || activeTag !== null;
+  const active = tasks.filter((x) => !x.completed && matchesQuery(x, q) && matchesTag(x, activeTag));
   const overdue = sortTasks(
     active.filter((x) => classifySchedule(x.date, x.completed, today) === 'overdue'),
     sortKey,
@@ -595,7 +620,7 @@ function TodoSub({
     upcoming.forEach((task) => rows.push({ kind: 'task', id: task.id, task }));
   }
   if (rows.length === 0) {
-    if (searching) {
+    if (filtering) {
       rows.push({ kind: 'empty', id: 'empty', icon: ICONS.search, title: t('plan.noResults'), hint: t('plan.noResultsHint') });
     } else {
       rows.push({ kind: 'empty', id: 'empty', icon: ICONS.tasks, title: t('plan.emptyTodo'), hint: t('plan.emptyTodoHint') });
@@ -685,6 +710,7 @@ function CalendarSub({
   today,
   searchText,
   sortKey,
+  activeTag,
   onToggle,
   onDelete,
   onToggleHabit,
@@ -700,6 +726,7 @@ function CalendarSub({
   today: string;
   searchText: string;
   sortKey: SortKey;
+  activeTag: string | null;
   onToggle: (t: Task) => void;
   onDelete: (t: Task) => void;
   onToggleHabit: (h: Habit) => void;
@@ -747,8 +774,8 @@ function CalendarSub({
 
   const monthLabel = `${yy}·${`${mm}`.padStart(2, '0')}`;
   const q = searchText.trim();
-  const selList = sortTasks((byDate[sel] || []).filter((x) => matchesQuery(x, q)), sortKey);
-  const searching = q.length > 0;
+  const filtering = q.length > 0 || activeTag !== null;
+  const selList = sortTasks((byDate[sel] || []).filter((x) => matchesQuery(x, q) && matchesTag(x, activeTag)), sortKey);
   const selHasTasks = selList.length > 0;
 
   const shift = (delta: number) => {
@@ -843,7 +870,7 @@ function CalendarSub({
           ))
         ) : (
           <View style={{ marginTop: space.md }}>
-            {searching ? (
+            {filtering ? (
               <EmptyState icon={ICONS.search} title={t('plan.noResults')} hint={t('plan.noResultsHint')} />
             ) : (
               <EmptyState icon={ICONS.tasks} title={t('plan.calEmpty')} />
@@ -1012,6 +1039,15 @@ function TaskRow({
           <M3Text role="labelSmall" color={theme.onSurfaceVariant} numberOfLines={1}>
             {`${task.time || t('plan.noTime')} · ${task.category}`}
           </M3Text>
+          {task.tags && task.tags.length > 0 ? (
+            <View style={{ flexDirection: 'row', gap: 4, marginTop: 2, flexWrap: 'wrap' }}>
+              {task.tags.map((tg) => (
+                <View key={tg} style={{ paddingVertical: 1, paddingHorizontal: 6, borderRadius: radius.sm, backgroundColor: theme.surfaceContainer }}>
+                  <M3Text role="labelSmall" color={theme.onSurfaceVariant}>#{tg}</M3Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
         {hasSubs ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
@@ -1131,6 +1167,8 @@ function ScheduleForm({ today, onClose }: { today: string; onClose: () => void }
   const [showDate, setShowDate] = useState(false);
   const [showTime, setShowTime] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
   const titleRef = useRef<TextInput>(null);
   const titleValid = canSubmitSchedule(title);
 
@@ -1155,7 +1193,7 @@ function ScheduleForm({ today, onClose }: { today: string; onClose: () => void }
       const list = await store.getTasks();
       await store.setTasks([
         ...list,
-        { id: uid('t'), title: title.trim(), date, time, priority, category, note: '', completed: false, createdAt: Date.now(), repeat: repeat !== 'none' ? repeat : undefined },
+        { id: uid('t'), title: title.trim(), date, time, priority, category, note: '', completed: false, createdAt: Date.now(), repeat: repeat !== 'none' ? repeat : undefined, ...(tags.length > 0 ? { tags } : {}) },
       ]);
       onClose();
     } finally {
@@ -1203,6 +1241,46 @@ function ScheduleForm({ today, onClose }: { today: string; onClose: () => void }
             </M3Text>
           </TouchableOpacity>
         ))}
+      </View>
+      <M3Text role="labelMedium" color={theme.onSurfaceVariant} style={{ marginTop: 12, marginBottom: 6 }}>{t('plan.tags')}</M3Text>
+      {tags.length > 0 && (
+        <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+          {tags.map((tg) => (
+            <View key={tg} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: 4, paddingHorizontal: 8, borderRadius: radius.md, backgroundColor: theme.primaryContainer }}>
+              <M3Text role="labelMedium" color={theme.onPrimaryContainer}>#{tg}</M3Text>
+              <TouchableOpacity onPress={() => setTags(tags.filter((x) => x !== tg))} accessibilityRole="button" accessibilityLabel={t('plan.deleteTagA11y', { name: tg })} hitSlop={4}>
+                <Icon name={ICONS.close} size={14} color={theme.onPrimaryContainer} />
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      )}
+      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+        <View style={{ flex: 1 }}>
+          <TextField
+            value={tagInput}
+            onChangeText={setTagInput}
+            placeholder={t('plan.tagPlaceholder')}
+            onSubmitEditing={() => {
+              const v = tagInput.trim();
+              if (v && !tags.includes(v)) setTags([...tags, v]);
+              if (v) setTagInput('');
+            }}
+            trailing={
+              <IconButton
+                name={ICONS.add}
+                size={20}
+                color={theme.onSurfaceVariant}
+                onPress={() => {
+                  const v = tagInput.trim();
+                  if (v && !tags.includes(v)) setTags([...tags, v]);
+                  if (v) setTagInput('');
+                }}
+                accessibilityLabel={t('plan.addTag')}
+              />
+            }
+          />
+        </View>
       </View>
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 14 }}>
         <PrimaryButton label={busy ? t('common.processing') : t('common.add')} onPress={submit} disabled={!titleValid || busy} style={{ flex: 1 }} />

@@ -132,6 +132,7 @@ export interface Task {
   createdAt: number;
   subtasks?: SubTask[]; // optional — backward compatible; absent = no subtasks
   repeat?: RepeatFrequency; // optional — backward compatible; absent/none = one-off task
+  tags?: string[]; // optional — backward compatible; absent/empty = no tags (V2.10.0)
 }
 
 export type ShopPriority = '高' | '中' | '低';

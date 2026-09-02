@@ -246,6 +246,15 @@ export const en = {
     sortAlpha: 'Title',
     noResults: 'No matching tasks',
     noResultsHint: 'Try a different keyword',
+    // Task tags + tag filtering (V2.10.0)
+    tags: 'Tags',
+    addTag: 'Add tag',
+    tagPlaceholder: 'Type a tag, then Enter',
+    noTags: 'No tags',
+    filterByTag: 'Filter by tag',
+    allTags: 'All tags',
+    tagAdded: 'Tag added',
+    deleteTagA11y: 'Delete tag "%{name}"',
   },
   habitCal: {
     monthYear: '%{month} %{year}',

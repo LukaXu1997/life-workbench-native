@@ -8,7 +8,7 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 9, PATCH: 0 } as const;
+export const APP_VERSION = { MAJOR: 2, MINOR: 10, PATCH: 0 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.0.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.0.0"
@@ -19,7 +19,19 @@ export const BUILD_DATE = '2026-08-30';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.9.0 — 2026-08-30
+export const RELEASE_NOTES = `V2.10.0 — 2026-08-30
+任务标签与标签筛选（功能小版本，零新增依赖）：
+
+· 任务支持标签（tags）：每个任务可挂任意数量标签，复用计划页新增标签编辑器（chip 展示 + 输入回车添加 + 单标签删除），创建时一并写入
+· 标签筛选：待办 / 日历新增「标签」筛选条，按全部任务聚合出的标签横向滚动展示，点按某标签即仅显示带该标签的任务；「全部标签」一键清除筛选
+· 待办三分组（逾期 / 今天 / 即将到来）与日历日详情均受标签筛选约束，分组语义不变
+· 搜索 + 标签筛选可叠加生效：两者同时输入时结果取交集
+· 任务行（TaskRow）新增标签展示：带标签的任务在标题下以 #标签 小药丸呈现，一眼可辨归类
+· 空结果提示：搜索 / 筛选无匹配时显示「没有匹配的任务」及换关键词提示，替代原空状态
+· 全量 CN/EN i18n：tags / addTag / tagPlaceholder / noTags / filterByTag / allTags / tagAdded / deleteTagA11y 共 8 条
+· 纯数据扩展：Task.tags 为可选字段（string[]），旧数据无该字段仍正常（向后兼容），SCHEMA_VERSION 仍为 2
+
+V2.9.0 — 2026-08-30
 任务搜索与智能排序（功能小版本，零新增依赖）：
 
 · 待办 / 日历新增搜索框：按标题与备注实时过滤（不区分大小写），跨分栏共享同一搜索词，切换待办↔日历时搜索保持同步

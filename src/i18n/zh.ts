@@ -246,6 +246,15 @@ export const zh = {
     sortAlpha: '标题',
     noResults: '没有匹配的任务',
     noResultsHint: '换个关键词试试',
+    // 任务标签 + 标签筛选（V2.10.0）
+    tags: '标签',
+    addTag: '添加标签',
+    tagPlaceholder: '输入标签后回车',
+    noTags: '暂无标签',
+    filterByTag: '按标签筛选',
+    allTags: '全部标签',
+    tagAdded: '已添加标签',
+    deleteTagA11y: '删除标签「%{name}」',
   },
   habitCal: {
     monthYear: '%{month} %{year}',
