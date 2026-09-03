@@ -29,6 +29,10 @@ acceptance-shots/
 screenshots/
 .verify_shots/
 .tmptest/
+.tmptest_tng/
+
+# Release / build artifacts (large APKs, CI downloads, run logs — never commit)
+release-artifacts/
 
 # WorkBuddy session data
 .workbuddy/
