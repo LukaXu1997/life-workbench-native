@@ -42,6 +42,27 @@ jobs:
       - name: Install JS dependencies (lockfile)
         run: npm ci
 
+      # Apply local patches (patch-package). We run this explicitly (not only via
+      # the npm postinstall hook) so the build is deterministic: the patch makes
+      # expo-modules-autolinking@2.0.8 honor `applyToRootProject:false` so the
+      # expo-module-gradle-plugin is NOT applied to :app (which would otherwise
+      # clobber :app's com.android.application with com.android.library).
+      # patch-package is idempotent, so a postinstall run beforehand is harmless.
+      - name: Apply patches (expo-modules-autolinking fix)
+        run: npx patch-package
+
+      # Sanity gate: if the patch above did not land, gradle will fail later on
+      # the com.android.library/com.android.application conflict. Fail fast here
+      # with a clear message instead.
+      - name: Verify expo autolinking patch applied
+        run: |
+          F="node_modules/expo-modules-autolinking/scripts/android/autolinking_implementation.gradle"
+          if ! grep -q "applyToRootProject" "$F"; then
+            echo "ERROR: expo-modules-autolinking patch did not apply. 'applyToRootProject' guard missing." >&2
+            exit 1
+          fi
+          echo "OK: expo-modules-autolinking patch guard present."
+
       - name: Setup JDK 17
         uses: actions/setup-java@v4
         with:
