@@ -10,6 +10,54 @@
 
 ---
 
+## V2.14.11 — 2026-09-03
+Notion 风格 UI/UX 打磨续（剩余金额数字字重收敛，SCHEMA_VERSION 仍为 2，纯前端视觉）：
+- 枚举全站 Amount 用法，收敛最后 3 处默认 600 的数据数字 → 500，与已收敛的 hero/子数字层级一致：
+  - 首页「即将到期」信用卡应还金额（titleMedium）
+  - 财务概览「本月收支」结余净额与次级净额（titleMedium ×2）
+- 自此全站金额数字字重统一为 500（hero 与子数字同级）、并带负字距（V2.14.10），层级与观感完全齐整
+- 纯展示层，未碰逻辑 / 存储 / SCHEMA_VERSION；versionCode 21410 → 21411
+
+## V2.14.10 — 2026-09-03
+Notion 风格 UI/UX 打磨续（大数字负字距，SCHEMA_VERSION 仍为 2，纯前端视觉）：
+- 大金额数字此前只靠 tabular-nums 等宽、未收紧字距，而周围标题（V2.14.7 起）已带负字距，导致 hero/金额数字比标签更松、层级观感不齐
+- 在共享金额组件 AnimatedBalance（anim.tsx）与 AutoFitAmount（ui.tsx）按字号比例加 letterSpacing（−fontSize×0.015，约 −0.015em），与 M3Text 标题负字距同源——首页结余 / 财务净资产 / MiniStat / 本月收支等所有金额数字现在与标签观感一致
+- 纯展示层：仅动金额组件 style，未碰任何逻辑 / 存储 / SCHEMA_VERSION；versionCode 21409 → 21410
+
+## V2.14.9 — 2026-09-03
+Notion 风格 UI/UX 打磨续（hero/子数字字重层级收敛，SCHEMA_VERSION 仍为 2，纯前端视觉）：
+- 首页「本月收入/支出」MoneyColumn 子数字（Amount 默认 600）收为 500，不再重于本月结余 hero（已 500），修正「子数字比主数字更粗」的层级倒置
+- 财务概览 MiniStat（负债/本月收支等，titleLarge 默认 600）收为 500，与净资产 hero（V2.14.8 已 500）层级一致；影响财务页所有 MiniStat 用法，统一生效
+- 全局负字距 + tabular-nums 不变；纯增量 versionCode 21408 → 21409，未改动存储结构与 SCHEMA_VERSION
+
+## V2.14.8 — 2026-09-03
+Notion 风格 UI/UX 打磨续（财务页 hero 字重收敛，SCHEMA_VERSION 仍为 2，纯前端视觉）：
+- 财务概览「净资产」大数字（displaySmall）字重 600 → 500，与首页本月结余 hero（V2.14.7 已收 600→500）保持一致，跨页 hero 视觉权重统一、更贴 Notion 的轻量大数字
+- 全局标题负字距（V2.14.7 已落地）同步作用于财务页所有 title/display 角色，无需额外改动
+- 纯增量：versionCode 21407 → 21408，未改动存储结构与 SCHEMA_VERSION
+
+## V2.14.7 — 2026-09-03
+Notion 风格 UI/UX 进一步打磨（系统排版 + 首页，SCHEMA_VERSION 仍为 2，纯前端视觉）：
+- 大标题负字距：displaySmall(−0.5) / headlineMedium(−0.3) / titleLarge(−0.2) / titleMedium(−0.1) 收紧字偶间距，typography.ts 新增 letterSpacing 字段、M3Text 全局应用——全站标题更克制紧凑，是 Notion / Apple 中性观感的招牌细节
+- 首页余额 hero 字重收敛：本月结余主数字 600 → 500、副币种 500 → 400，弱化「数字喧宾夺主」，层级更靠近 Notion 的轻量标题（tabular-nums 等宽不变，数字切换不跳动）
+- 首页四宫格扁平化：快捷入口由 surface 填充块改为透明 borderless 图标+文字网格（等宽 flex:1 / 24dp 图标 / 14sp 标题 / 按压态不变），更贴 Notion 的留白网格
+- 纯增量：versionCode 21406 → 21407，未改动存储结构与 SCHEMA_VERSION
+
+## V2.14.6 — 2026-09-02
+界面打磨三处（SCHEMA_VERSION 仍为 2，纯前端 UI）：
+- 数据与安全：移除「生物识别诊断」区块（硬件 / 支持类型 / 是否已录入 / 安全等级 / 最后错误码），页面更克制专业；应用锁开关与「不可用原因」提示保留
+- 用户名同步：今日页问候语不再写死 "Luka"，改为读取「我的」页可编辑的用户名（store.getProfileName）；store 新增 onProfileNameChange 订阅，「我的」改名后今日页实时刷新「晚上好，{用户名}」
+- 识别来源 App：删除重复的旧包名选项 —— Grab 的 com.grabtaxi（误写，正确为 com.grabtaxi.passenger）、TnG 的 com.tngdigital.wallet（误写，正确为 my.com.tngdigital.ewallet）；保留官方包名，避免同一 App 出现两个来源选项
+- 纯增量：versionCode 21405 → 21406，未改动存储结构与 SCHEMA_VERSION
+
+## V2.14.5 — 2026-09-02
+拓展电子钱包付款实时捕获至国内 App 拼多多（SCHEMA_VERSION 仍为 2）：
+- 包名确认：拼多多真实包名为 com.xunmeng.pinduoduo（小米应用商店 / 当快 / 西西 / techylist 多源一致，厂商「上海寻梦信息技术有限公司」）
+- 原生金额检测补 CNY：TxnCaptureService 原仅识别 RM，现新增 ¥/￥ 与「元」正则，识别「任意金额 + 成功关键词」即捕获；拼多多付款成功页为 ¥xx.xx +「支付成功」，可正确命中
+- 捕获包名白名单重命名：EWALLET_CAPTURE_PACKAGES → TXN_CAPTURE_PACKAGES（现混合 MYR 电子钱包 + 国内 CNY App，原名不准），并加入 com.xunmeng.pinduoduo；parsers.ts 的 CNY_APP 集合、ingest.ts 的 APP_LABELS（拼多多）同步接入，CNY 解析器此前已就绪
+- 设置页文案泛化：tngCaptureHint（CN/EN）补充拼多多等国内电商、支持 ¥ 金额
+- 纯增量：versionCode 21404 → 21405，未改动存储结构与 SCHEMA_VERSION
+
 ## V2.14.4 — 2026-09-02
 电子钱包捕获包名全量修正 + 拓展为整套电子钱包（SCHEMA_VERSION 仍为 2）：
 - 在 Pixel 真机核对已安装支付 App 真实包名：TNG=`my.com.tngdigital.ewallet`、Grab=`com.grabtaxi.passenger`（原误写 `com.grabtaxi`）、Shopee=`com.shopee.my`、Lazada=`com.lazada.android`
