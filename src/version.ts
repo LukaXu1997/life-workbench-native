@@ -8,7 +8,7 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 14, PATCH: 16 } as const;
+export const APP_VERSION = { MAJOR: 3, MINOR: 0, PATCH: 1 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.13.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.13.0"
@@ -19,7 +19,14 @@ export const BUILD_DATE = '2026-09-03';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.14.16 — 2026-09-03
+export const RELEASE_NOTES = `V3.0.1 — 2026-09-03
+安全加固正式发布版（基于 V2.14.16 安全加固内容，SCHEMA_VERSION 仍为 2，无存储结构/导航/功能逻辑改动）：
+
+· 版本号由 2.14.16 升为 3.0.1（versionCode 21416 → 30001），作为正式签名发布版
+· 加密随机源 / 安全存储分级 / 安全迁移 / 云同步可恢复错误 / 12 项加密单测 + 安全门禁 / 两处缺陷修复 / Release 签名门禁 —— 内容与 V2.14.16 一致，仅版本号变更
+· 纯安全/缺陷修复：未改动存储结构与 SCHEMA_VERSION
+
+V2.14.16 — 2026-09-03
 安全加固 + 缺陷修复（SCHEMA_VERSION 仍为 2，无存储结构/导航/功能逻辑改动）：
 
 · 加密随机源：src/crypto.ts 移除 AES-GCM salt/IV 的 Math.random() 回退，改为原生 CSPRNG（expo-crypto SecRandomCopyBytes / Android SecureRandom）→ Web Crypto → 缺失时抛 SecureRandomUnavailableError 使备份失败而非降级
