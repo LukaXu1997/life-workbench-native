@@ -692,6 +692,7 @@ function MiniStat({
         minor={value}
         cur={cur}
         role="titleLarge"
+        weight="500"
         masked={masked}
         color={tone ?? theme.onSurface}
         style={{ marginTop: 2 }}

@@ -271,6 +271,7 @@ export default function HomeScreen({ navigation }: any) {
             minor={l.minor}
             cur={l.cur}
             role="titleMedium"
+            weight="500"
             color={theme.onSurface}
             maxFontSizeMultiplier={1.2}
             style={{ marginTop: 2 }}

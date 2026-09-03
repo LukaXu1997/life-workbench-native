@@ -8,7 +8,7 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 14, PATCH: 8 } as const;
+export const APP_VERSION = { MAJOR: 2, MINOR: 14, PATCH: 9 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.13.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.13.0"
@@ -19,7 +19,14 @@ export const BUILD_DATE = '2026-09-03';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.14.8 — 2026-09-03
+export const RELEASE_NOTES = `V2.14.9 — 2026-09-03
+Notion 风格 UI/UX 打磨续（hero/子数字字重层级收敛，SCHEMA_VERSION 仍为 2，纯前端视觉）：
+
+· 首页「本月收入/支出」MoneyColumn 子数字（Amount 默认 600）收为 500，不再重于本月结余 hero（已 500），修正「子数字比主数字更粗」的层级倒置
+· 财务概览 MiniStat（负债/本月收支等，titleLarge 默认 600）收为 500，与净资产 hero（V2.14.8 已 500）层级一致；影响财务页所有 MiniStat 用法，统一生效
+· 全局负字距 + tabular-nums 不变；纯增量 versionCode 21408 → 21409，未改动存储结构与 SCHEMA_VERSION
+
+V2.14.8 — 2026-09-03
 Notion 风格 UI/UX 打磨续（财务页 hero 字重收敛，SCHEMA_VERSION 仍为 2，纯前端视觉）：
 
 · 财务概览「净资产」大数字（displaySmall）字重 600 → 500，与首页本月结余 hero（V2.14.7 已收 600→500）保持一致，跨页 hero 视觉权重统一、更贴 Notion 的轻量大数字
