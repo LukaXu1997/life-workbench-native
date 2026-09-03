@@ -158,6 +158,9 @@ export function AutoFitAmount({
           lineHeight: Math.round(fontSize * 1.12),
           fontWeight: weight,
           color: color ?? theme.onSurface,
+          // 大数字按比例收紧字距（~0.015em），与 M3Text 标题负字距同源，
+          // 让金额数字与周围标签观感一致（Notion 招牌细节）。
+          letterSpacing: -(fontSize * 0.015),
         },
         tabular ? { fontVariant: ['tabular-nums' as const] } : null,
         style,

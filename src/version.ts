@@ -8,7 +8,7 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 14, PATCH: 9 } as const;
+export const APP_VERSION = { MAJOR: 2, MINOR: 14, PATCH: 10 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.13.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.13.0"
@@ -19,7 +19,14 @@ export const BUILD_DATE = '2026-09-03';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.14.9 — 2026-09-03
+export const RELEASE_NOTES = `V2.14.10 — 2026-09-03
+Notion 风格 UI/UX 打磨续（大数字负字距，SCHEMA_VERSION 仍为 2，纯前端视觉）：
+
+· 大金额数字此前只靠 tabular-nums 等宽、未收紧字距，而周围标题（V2.14.7 起）已带负字距，导致 hero/金额数字比标签更松、层级观感不齐
+· 在共享金额组件 AnimatedBalance（anim.tsx）与 AutoFitAmount（ui.tsx）按字号比例加 letterSpacing（−fontSize×0.015，约 −0.015em），与 M3Text 标题负字距同源——首页结余 / 财务净资产 / MiniStat / 本月收支等所有金额数字现在与标签观感一致
+· 纯展示层：仅动金额组件 style，未碰任何逻辑 / 存储 / SCHEMA_VERSION；versionCode 21409 → 21410
+
+V2.14.9 — 2026-09-03
 Notion 风格 UI/UX 打磨续（hero/子数字字重层级收敛，SCHEMA_VERSION 仍为 2，纯前端视觉）：
 
 · 首页「本月收入/支出」MoneyColumn 子数字（Amount 默认 600）收为 500，不再重于本月结余 hero（已 500），修正「子数字比主数字更粗」的层级倒置

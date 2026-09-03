@@ -100,8 +100,8 @@ android {
         applicationId 'com.luka.lifeworkbench'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 21409
-        versionName "2.14.9"
+        versionCode 21410
+        versionName "2.14.10"
         ndk {
             abiFilters "arm64-v8a"
         }

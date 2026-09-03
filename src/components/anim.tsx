@@ -612,6 +612,9 @@ export function AnimatedBalance({
           fontWeight: weight,
           color: color ?? theme.onSurface,
           fontVariant: ['tabular-nums' as const],
+          // 大数字按比例收紧字距（~0.015em），与 M3Text 标题负字距同源，
+          // 让 hero/金额数字与周围标签观感一致（Notion 招牌细节）。
+          letterSpacing: -(fontSize * 0.015),
         },
         style,
       ]}
