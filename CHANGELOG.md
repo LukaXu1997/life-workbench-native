@@ -10,6 +10,15 @@
 
 ---
 
+## V2.14.14 — 2026-09-03
+Notion 风格二次精修收口（计划屏待确认列表，SCHEMA_VERSION 仍为 2，纯前端视觉）：
+- 用户重发「其余屏（计划/任务/日记/我的子页）二次精修」指令，本次逐屏读源码复核四屏真实状态：任务屏浮条已在 V2.14.12 收敛；日记屏 / 我的屏 + 子页统一采用 kit 的 ListGroup/NavRow/Switch/TextField + token，已对齐；唯一真实偏差在 **计划屏「待确认交易」列表（PendingScreen）**：
+  - 列表容器 Surface 硬编码 `borderRadius:16` → 改用 token `radius.card`（12），圆角与全站卡片节奏一致
+  - 滚动容器 `padding:16` 硬编码 → 改用 `pageMargin` token，消除魔法数
+  - **双分隔线**：ui.tsx 的 `ListRow` 自身已带 hairline 底边，外层又手动加 `height:1` 分隔线，造成视觉双线；移除外层冗余分隔线，仅保留 `ListRow` 单层 hairline
+- 注：V2.14.12 的「其余三屏已近扁平、本次不动」结论当时仅覆盖任务屏浮条；计划屏的上述三处偏差属当时扫描遗漏，本次补修
+- 纯展示层：仅动 PendingScreen 容器/分隔线 style 与 token 引用，未碰逻辑 / 存储 / SCHEMA_VERSION；versionCode 21413 → 21414
+
 ## V2.14.13 — 2026-09-03
 收口：关闭实时捕获自检诊断日志（DIAGNOSE=false），出干净正式版：
 - TxnCaptureService.kt 的 DIAGNOSE 由 true 置 false，仅静音诊断 Log.d（包名 + 布尔匹配旗标 + 屏幕长度，不含屏幕文字与金额）；实时捕获逻辑与门控完全不变、可逆（改回一行即可恢复自检）

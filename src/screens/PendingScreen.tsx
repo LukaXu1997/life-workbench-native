@@ -16,6 +16,7 @@ import {
   IconButton,
 } from '../components/ui';
 import { Icon, ICONS } from '../icons';
+import { radius, pageMargin, space } from '../tokens';
 import { formatMoney } from '../money';
 import type { PendingRecord } from '../types';
 
@@ -93,13 +94,10 @@ export default function PendingScreen() {
       {pending.length === 0 ? (
         <EmptyState icon={ICONS.pending} title={t('notify.empty')} hint={t('notify.emptyHint')} />
       ) : (
-        <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
-          <Surface level={0} style={{ borderRadius: 16, overflow: 'hidden' }}>
-            {pending.map((rec, i) => (
-              <View key={rec.id}>
-                {i > 0 && <View style={{ height: 1, backgroundColor: theme.divider }} />}
-                {renderRow(rec)}
-              </View>
+        <ScrollView contentContainerStyle={{ padding: pageMargin, paddingBottom: space.xxxl }}>
+          <Surface level={0} style={{ borderRadius: radius.card, overflow: 'hidden' }}>
+            {pending.map((rec) => (
+              <View key={rec.id}>{renderRow(rec)}</View>
             ))}
           </Surface>
         </ScrollView>

@@ -8,7 +8,7 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 14, PATCH: 13 } as const;
+export const APP_VERSION = { MAJOR: 2, MINOR: 14, PATCH: 14 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.13.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.13.0"
@@ -19,7 +19,17 @@ export const BUILD_DATE = '2026-09-03';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.14.13 — 2026-09-03
+export const RELEASE_NOTES = `V2.14.14 — 2026-09-03
+Notion 风格二次精修收口（计划屏，SCHEMA_VERSION 仍为 2，纯前端视觉）：
+
+· 计划屏「待确认交易」列表此前存在三处视觉偏差，与全站 Notion 体系不一致，本次统一：
+  - 列表容器 Surface 硬编码 borderRadius:16 → 改用 token radius.card（12），圆角与全站卡片节奏一致
+  - 滚动容器 padding:16 硬编码 → 改用 pageMargin token，消除魔法数
+  - 列表行分隔线双重叠加：ui.tsx 的 ListRow 自身已带 hairline 底边，外层又手动加 height:1 分隔线，造成视觉双线；移除外层冗余分隔线，仅保留 ListRow 单层 hairline
+· 任务 / 日记 / 我的 + 子页经逐屏核查已统一采用 kit 的 ListGroup/NavRow/Switch/TextField + token，无新增偏差（任务屏批量浮条已在 V2.14.12 收敛）
+· 纯展示层：仅动 PendingScreen 容器/分隔线 style 与 token 引用，未碰逻辑 / 存储 / SCHEMA_VERSION；versionCode 21413 → 21414
+
+V2.14.13 — 2026-09-03
 收口：关闭实时捕获自检诊断日志（DIAGNOSE=false），出干净正式版：
 
 · TxnCaptureService.kt 的 DIAGNOSE 由 true 置 false，仅静音诊断 Log.d（包名 + 布尔匹配旗标 + 屏幕长度，不含屏幕文字与金额），实时捕获逻辑与门控完全不变、可逆
