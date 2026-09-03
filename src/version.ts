@@ -8,7 +8,7 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 3, MINOR: 0, PATCH: 1 } as const;
+export const APP_VERSION = { MAJOR: 3, MINOR: 0, PATCH: 2 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.13.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.13.0"
@@ -19,7 +19,15 @@ export const BUILD_DATE = '2026-09-03';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V3.0.1 — 2026-09-03
+export const RELEASE_NOTES = `V3.0.2 — 2026-09-03
+维护发布版（与 V3.0.1 功能内容完全一致，SCHEMA_VERSION 仍为 2，无存储结构/导航/功能逻辑改动）：
+
+· 版本号由 3.0.1 升为 3.0.2（versionCode 30001 → 30002）
+· 与 V3.0.1 相同的安全加固正式发布内容（加密随机源 / 安全存储分级 / 安全迁移 / 云同步可恢复错误 / 12 项加密单测 + 安全门禁 / Release 签名门禁）
+· 主要目的：以正确指向的 v3.0.2 标签重建正式发布产物，修正此前 v3.0.1 标签未指向 main 最新提交的问题，建立可追溯的标签化发布
+· 纯版本/标签修正：未改动任何代码逻辑、存储结构与 SCHEMA_VERSION
+
+V3.0.1 — 2026-09-03
 安全加固正式发布版（基于 V2.14.16 安全加固内容，SCHEMA_VERSION 仍为 2，无存储结构/导航/功能逻辑改动）：
 
 · 版本号由 2.14.16 升为 3.0.1（versionCode 21416 → 30001），作为正式签名发布版
