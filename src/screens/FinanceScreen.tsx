@@ -495,6 +495,7 @@ function OverviewTab({
               minor={summary.netWorthMYR}
               cur="MYR"
               role="displaySmall"
+              weight="500"
               masked={hide}
               color={summary.netWorthMYR < 0 ? theme.error : undefined}
               style={{ marginTop: 2 }}

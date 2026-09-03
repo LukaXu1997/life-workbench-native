@@ -8,7 +8,7 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 14, PATCH: 7 } as const;
+export const APP_VERSION = { MAJOR: 2, MINOR: 14, PATCH: 8 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.13.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.13.0"
@@ -19,7 +19,14 @@ export const BUILD_DATE = '2026-09-03';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.14.7 — 2026-09-03
+export const RELEASE_NOTES = `V2.14.8 — 2026-09-03
+Notion 风格 UI/UX 打磨续（财务页 hero 字重收敛，SCHEMA_VERSION 仍为 2，纯前端视觉）：
+
+· 财务概览「净资产」大数字（displaySmall）字重 600 → 500，与首页本月结余 hero（V2.14.7 已收 600→500）保持一致，跨页 hero 视觉权重统一、更贴 Notion 的轻量大数字
+· 全局标题负字距（V2.14.7 已落地）同步作用于财务页所有 title/display 角色，无需额外改动
+· 纯增量：versionCode 21407 → 21408，未改动存储结构与 SCHEMA_VERSION
+
+V2.14.7 — 2026-09-03
 Notion 风格 UI/UX 进一步打磨（系统排版 + 首页，SCHEMA_VERSION 仍为 2，纯前端视觉）：
 
 · 大标题负字距：displaySmall(−0.5) / headlineMedium(−0.3) / titleLarge(−0.2) / titleMedium(−0.1) 收紧字偶间距，typography.ts 新增 letterSpacing 字段、M3Text 全局应用——全站标题更克制紧凑，是 Notion / Apple 中性观感的招牌细节
