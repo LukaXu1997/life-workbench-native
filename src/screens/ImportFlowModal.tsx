@@ -243,14 +243,21 @@ export function ImportFlowModal({
     ? preview.rows.filter((r) => !r.skipByDefault && !resolver(r)).length
     : 0;
 
-  const bindable = source === 'alipay' || source === 'tng';
-  const platformCur = bindable ? PLATFORM_DEFAULTS[source as 'alipay' | 'tng'].currency : undefined;
+  const bindable =
+    source === 'alipay' || source === 'tng' || source === 'grab' || source === 'shopee' || source === 'lazada';
+  const platformCur = bindable
+    ? PLATFORM_DEFAULTS[source as 'alipay' | 'tng' | 'grab' | 'shopee' | 'lazada'].currency
+    : undefined;
   const bindCandidateAccounts = platformCur
     ? accounts.filter((a) => a.currency === platformCur)
     : [];
   const selectedAccount = boundAccountId ?? (preview ? resolver(preview.rows[0]) : undefined);
   const inferredCny = !!preview?.rows.some((r) => r.source === 'alipay' && r.currencyInferredFromSource);
-  const inferredMyr = !!preview?.rows.some((r) => r.source === 'tng' && r.currencyInferredFromSource);
+  const inferredMyr = !!preview?.rows.some(
+    (r) =>
+      (r.source === 'tng' || r.source === 'grab' || r.source === 'shopee' || r.source === 'lazada') &&
+      r.currencyInferredFromSource
+  );
   const currencyConflict = !!preview?.rows.some((r) => r.currencyConflict);
 
   return (

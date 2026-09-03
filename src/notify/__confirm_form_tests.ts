@@ -94,7 +94,7 @@ eq(minorToAmountStr(undefined), '0.00', 'fmt: undefined -> 0.00');
 
 // ---------- 4. real apps auto-suggest an account by source ----------
 {
-  const tng = mkRec({ sourceApp: 'com.tngdigital.wallet', sourceAppLabel: "Touch 'n Go", currency: 'MYR' });
+  const tng = mkRec({ sourceApp: 'my.com.tngdigital.ewallet', sourceAppLabel: "Touch 'n Go", currency: 'MYR' });
   eq(suggestAccountFor(tng, accounts), 'ew_myr', 'suggest: TNG -> MYR ewallet');
 
   const ali = mkRec({ sourceApp: 'com.eg.android.AlipayGphone', sourceAppLabel: 'Alipay', currency: 'CNY' });

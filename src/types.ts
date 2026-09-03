@@ -197,7 +197,7 @@ export type PostingStatus = 'awaiting_posting' | 'posted' | null;
 
 export interface PendingRecord {
   id: string;
-  sourceApp: string; // package name, e.g. com.tngdigital.wallet
+  sourceApp: string; // package name, e.g. my.com.tngdigital.ewallet
   sourceAppLabel?: string; // human label, e.g. "Touch 'n Go"
   rawDigest: string; // sha256(pkg|text) — safe digest, NOT raw text
   previewMasked?: string; // masked preview (merchant/amount tokens only)

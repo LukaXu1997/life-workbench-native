@@ -56,7 +56,7 @@ const accounts: Account[] = [
 
 function rec(p: Partial<PendingRecord> & Pick<PendingRecord, 'id' | 'currency' | 'amountMinor'>): PendingRecord {
   return {
-    sourceApp: 'com.tngdigital.wallet',
+    sourceApp: 'my.com.tngdigital.ewallet',
     rawDigest: 'deadbeef' + p.id,
     notifiedAt: Date.parse('2026-08-28T10:00:00'),
     suggestedCategory: '餐饮',

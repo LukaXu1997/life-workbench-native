@@ -32,7 +32,15 @@ export interface AccountBinding {
 
 /** True when `source` is a platform that supports per-source account binding. */
 function platformDefaultCurrency(source: ImportSource | undefined): 'CNY' | 'MYR' | undefined {
-  if (source === 'alipay' || source === 'tng') return PLATFORM_DEFAULTS[source].currency;
+  if (
+    source === 'alipay' ||
+    source === 'tng' ||
+    source === 'grab' ||
+    source === 'shopee' ||
+    source === 'lazada'
+  ) {
+    return PLATFORM_DEFAULTS[source].currency;
+  }
   return undefined;
 }
 

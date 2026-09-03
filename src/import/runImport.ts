@@ -17,10 +17,12 @@ import { detectSource, type SourceDetection } from './sourceDetect';
 import { parseAlipayFile } from './adapters/alipayCsv';
 import { parseWechatFile, isWechatXlsx } from './adapters/wechatXlsx';
 import { parseTngText } from './adapters/tngPdf';
+import { parseMyrEwalletFile } from './adapters/myrEwalletCsv';
 import { validateLifeWorkbenchSnapshot } from './schemas';
 import { migrateSnapshotV1ToV2 } from './migration';
 import { buildImportPreview, type UnifiedPreview } from './unify';
 import type { ImportCandidate, ImportSource, ImportFileKind } from './models';
+import { PLATFORM_DEFAULTS } from './models';
 
 export interface PickedFile {
   uri: string;
@@ -122,15 +124,29 @@ export async function prepareImport(
     return { ok: false, reason: '该 XLSX 不是微信支付账单；通用 XLSX 映射尚未开放' };
   }
 
-  // ---- CSV: Alipay (GB18030/UTF-8 auto) ----
+  // ---- CSV: Alipay (GB18030/UTF-8) OR MYR e-wallet (Grab / Shopee / Lazada) ----
   if (kind === 'csv') {
-    const parsed = parseAlipayFile({ name: file.name, bytes });
-    if (!parsed.ok) {
-      return { ok: false, reason: parsed.reason };
+    // MYR e-wallet statements share the Alipay-style CSV layout but are in MYR. Try
+    // them first; on a non-match, fall back to Alipay (which has its own GB18030
+    // decode + header validation). A platform mismatch is surfaced via that fallback.
+    const myr = parseMyrEwalletFile({ name: file.name, bytes });
+    if (myr.ok) {
+      return finish(
+        myr.result.candidates,
+        file.name,
+        myr.source,
+        kind,
+        opts.rateScaled,
+        {
+          source: myr.source,
+          confidence: 0.95,
+          reason: `命中 ${PLATFORM_DEFAULTS[myr.source].label} 账单表头签名`,
+        }
+      );
     }
-    // parseAlipayFile runs the adapter's own header validation, so a successful
-    // parse IS an Alipay statement — no separate source detection needed.
-    return finish(parsed.result.candidates, file.name, 'alipay', kind, opts.rateScaled);
+    const ap = parseAlipayFile({ name: file.name, bytes });
+    if (!ap.ok) return { ok: false, reason: ap.reason };
+    return finish(ap.result.candidates, file.name, 'alipay', kind, opts.rateScaled);
   }
 
   // ---- JSON: life-workbench snapshot (zod-validated + migrated) ----

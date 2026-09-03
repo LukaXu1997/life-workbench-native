@@ -41,7 +41,7 @@ const now = Date.now();
 const dayMs = 24 * 60 * 60 * 1000;
 
 const envTnG = (txt: string): NotifyEnvelope => ({
-  pkg: 'com.tngdigital.wallet',
+  pkg: 'my.com.tngdigital.ewallet',
   title: 'Touch n Go',
   text: txt,
   bigText: '',
@@ -64,7 +64,7 @@ const envWeChatPosted = (txt: string, at = now + dayMs): NotifyEnvelope => ({
   eq(r.currency, 'MYR', 'ingest: currency');
   eq(r.amountMinor, 1250, 'ingest: amountMinor');
   eq(r.merchant, 'Starbucks', 'ingest: merchant');
-  eq(r.sourceApp, 'com.tngdigital.wallet', 'ingest: sourceApp');
+  eq(r.sourceApp, 'my.com.tngdigital.ewallet', 'ingest: sourceApp');
   eq(r.sourceAppLabel, 'Touch \'n Go', 'ingest: sourceAppLabel');
   eq(r.status, 'pending', 'ingest: status pending');
   ok(typeof r.rawDigest === 'string' && r.rawDigest.length > 0, 'ingest: rawDigest set (one-way)');
@@ -136,7 +136,7 @@ const envWeChatPosted = (txt: string, at = now + dayMs): NotifyEnvelope => ({
 }
 
 // ---- 8. labelForApp fallback ----
-eq(labelForApp('com.tngdigital.wallet'), 'Touch \'n Go', 'label: known app');
+eq(labelForApp('my.com.tngdigital.ewallet'), 'Touch \'n Go', 'label: known app');
 eq(labelForApp('com.some.unknown'), 'com.some.unknown', 'label: unknown falls back to pkg');
 
 console.log(`\nPhase 6 tests: ${pass} passed, ${fail} failed`);

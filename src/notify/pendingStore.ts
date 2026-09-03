@@ -35,9 +35,7 @@ const NOTIFY_SETTINGS_KEY = 'wb_life_notify_settings';
 // EWALLET (MYR) / CNY_APP (CN) in notify/parsers.ts. Grab's real package is
 // com.grabtaxi.passenger; Lazada is com.lazada.android.
 export const TXN_CAPTURE_PACKAGES = [
-  'com.tngdigital.wallet',
   'my.com.tngdigital.ewallet',
-  'com.grabtaxi',
   'com.grabtaxi.passenger',
   'com.shopee.my',
   'com.lazada.android',

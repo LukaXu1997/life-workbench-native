@@ -31,6 +31,7 @@ const FILES = [
   ['src/import/sourceDetect.ts', 'import/sourceDetect.js'],
   ['src/import/adapters/types.ts', 'import/adapters/types.js'],
   ['src/import/adapters/alipayCsv.ts', 'import/adapters/alipayCsv.js'],
+  ['src/import/adapters/myrEwalletCsv.ts', 'import/adapters/myrEwalletCsv.js'],
   ['src/import/adapters/wechatXlsx.ts', 'import/adapters/wechatXlsx.js'],
   ['src/import/ownerProfile.ts', 'import/ownerProfile.js'],
   ['src/import/adapters/tngPdf.ts', 'import/adapters/tngPdf.js'],
@@ -59,6 +60,7 @@ const FILES = [
   ['src/import/__phase6_tests.ts', 'import/__phase6_tests.js'],
   ['src/import/__phase7_tests.ts', 'import/__phase7_tests.js'],
   ['src/import/__phase8_tests.ts', 'import/__phase8_tests.js'],
+  ['src/import/__phase9_tests.ts', 'import/__phase9_tests.js'],
   ['src/import/__e2e_real_tests.ts', 'import/__e2e_real_tests.js'],
 ];
 
@@ -94,6 +96,7 @@ const SUITES = [
   ['Phase 6  ImportService (commit/undo) / recompute R3', 'import/__phase6_tests.js'],
   ['Phase 7  dual-currency (MYR/CNY) monthly budget', 'import/__phase7_tests.js'],
   ['Phase 8  dual-currency budget rules (independent / 理财 / cross-card / thresholds)', 'import/__phase8_tests.js'],
+  ['Phase 9  MYR e-wallet CSV adapters (GrabPay / ShopeePay / Lazada)', 'import/__phase9_tests.js'],
   ['E2E  real files (Alipay CSV / WeChat XLSX / TNG PDF) — in-memory', 'import/__e2e_real_tests.js'],
   ['UI  status-bar + Tasks add-form logic', '__ui_tests.js'],
 ];

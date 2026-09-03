@@ -58,10 +58,8 @@ function detectKind(text: string): 'expense' | 'income' | 'unknown' {
 type AppHint = 'myr_ewallet' | 'myr_bank' | 'cny_bank' | 'cny_credit';
 
 const EWALLET = new Set([
-  'com.tngdigital.wallet', // Touch n Go (legacy / region variant)
   'my.com.tngdigital.ewallet', // Touch n Go eWallet (official Play Store package)
   'com.grabtaxi.passenger', // Grab / GrabPay (official Play Store package)
-  'com.grabtaxi', // Grab (legacy / region variant)
   'com.shopee.my', // ShopeePay
   'com.lazada.android', // Lazada
   'my.boost.app', // Boost

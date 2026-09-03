@@ -21,6 +21,9 @@ export type ImportSource =
   | 'tng'           // Touch 'n Go PDF statement
   | 'alipay'        // 支付宝 CSV statement
   | 'wechat'        // 微信支付 XLSX statement
+  | 'grab'          // GrabPay CSV statement (MYR e-wallet)
+  | 'shopee'        // ShopeePay CSV statement (MYR e-wallet)
+  | 'lazada'        // Lazada Wallet CSV statement (MYR e-wallet)
   | 'genericCsv'    // user CSV (column mapping applied)
   | 'genericXlsx';  // user XLSX (column mapping applied)
 
@@ -33,9 +36,15 @@ export type ImportFileKind = 'pdf' | 'csv' | 'xlsx' | 'json';
  *  isolates them automatically. We therefore DO NOT exempt any source from dedup;
  *  instead within-platform duplicates (and cross-source same-currency settlement
  *  links) are still allowed. */
-export const PLATFORM_DEFAULTS: Record<'alipay' | 'tng', { currency: Currency; accountType: 'ewallet'; label: string }> = {
+export const PLATFORM_DEFAULTS: Record<
+  'alipay' | 'tng' | 'grab' | 'shopee' | 'lazada',
+  { currency: Currency; accountType: 'ewallet'; label: string }
+> = {
   alipay: { currency: 'CNY', accountType: 'ewallet', label: '支付宝' },
   tng: { currency: 'MYR', accountType: 'ewallet', label: 'TNG' },
+  grab: { currency: 'MYR', accountType: 'ewallet', label: 'GrabPay' },
+  shopee: { currency: 'MYR', accountType: 'ewallet', label: 'ShopeePay' },
+  lazada: { currency: 'MYR', accountType: 'ewallet', label: 'Lazada' },
 };
 
 /** Fields a generic-column mapping can target. */

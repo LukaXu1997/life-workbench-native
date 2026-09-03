@@ -10,6 +10,7 @@ import type { ImportFileKind, ImportSource } from './models';
 import { validateLifeWorkbenchSnapshot } from './schemas';
 import { isWechatXlsx } from './adapters/wechatXlsx';
 import { isTngStatement } from './adapters/tngPdf';
+import { isGrabCsv, isShopeeCsv, isLazadaCsv } from './adapters/myrEwalletCsv';
 
 export interface SourceProbe {
   kind: ImportFileKind | 'unknown';
@@ -90,6 +91,15 @@ export function detectSource(p: SourceProbe): SourceDetection {
     case 'csv': {
       if (isAlipayCsv(p.text ?? '')) {
         return { source: 'alipay', confidence: 0.95, reason: '命中支付宝账单表头签名' };
+      }
+      if (isGrabCsv(p.text ?? '')) {
+        return { source: 'grab', confidence: 0.95, reason: '命中 GrabPay 账单表头签名' };
+      }
+      if (isShopeeCsv(p.text ?? '')) {
+        return { source: 'shopee', confidence: 0.95, reason: '命中 ShopeePay 账单表头签名' };
+      }
+      if (isLazadaCsv(p.text ?? '')) {
+        return { source: 'lazada', confidence: 0.95, reason: '命中 Lazada 账单表头签名' };
       }
       if (isGenericCsv(p.text ?? '')) {
         return { source: 'genericCsv', confidence: 0.9, reason: '通用 CSV（可应用列映射）' };

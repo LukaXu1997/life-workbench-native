@@ -32,6 +32,9 @@ export const importSourceSchema = z.enum([
   'tng',
   'alipay',
   'wechat',
+  'grab',
+  'shopee',
+  'lazada',
   'genericCsv',
   'genericXlsx',
 ]);

@@ -27,7 +27,7 @@ function eq(name: string, a: unknown, b: unknown) {
 const now = Date.now();
 
 // ---------- parsers ----------
-const tng = parseEnvelope({ pkg: 'com.tngdigital.wallet', title: 'Touch n Go', text: 'Payment of RM12.50 at Starbucks successful', bigText: '', postedAt: now })!;
+const tng = parseEnvelope({ pkg: 'my.com.tngdigital.ewallet', title: 'Touch n Go', text: 'Payment of RM12.50 at Starbucks successful', bigText: '', postedAt: now })!;
 eq('TnG amount', tng.amountMinor, 1250);
 eq('TnG currency', tng.currency, 'MYR');
 eq('TnG merchant', tng.merchant, 'Starbucks');
@@ -48,7 +48,7 @@ eq('WeChat merchant', wx.merchant, '麦当劳');
 eq('WeChat currency', wx.currency, 'CNY');
 
 // ---------- recognizer: MYR e-wallet ----------
-const r1 = recognize({ pkg: 'com.tngdigital.wallet', title: 'Touch n Go', text: 'Payment of RM12.50 at Starbucks successful', bigText: '', postedAt: now }, ctx)!;
+const r1 = recognize({ pkg: 'my.com.tngdigital.ewallet', title: 'Touch n Go', text: 'Payment of RM12.50 at Starbucks successful', bigText: '', postedAt: now }, ctx)!;
 eq('rec TnG account', r1.suggestedAccountId, 'ew_myr');
 eq('rec TnG category', r1.suggestedCategory, '餐饮');
 ok('rec TnG no predicted (same currency)', r1.predictedSettleMinor === undefined);
@@ -72,9 +72,9 @@ const r4 = recognize({ pkg: 'com.unknown.app', title: 'X', text: 'RM3.00', bigTe
 ok('rec low-confidence needsReview', r4.needsReview === true);
 
 // ---------- dedup ----------
-const envA = { pkg: 'com.tngdigital.wallet', title: 'Touch n Go', text: 'Payment of RM12.50 at Starbucks successful', bigText: '', postedAt: now };
-const envA2 = { pkg: 'com.tngdigital.wallet', title: 'Touch n Go', text: 'Payment of RM12.50 at Starbucks successful', bigText: '', postedAt: now };
-const envB = { pkg: 'com.tngdigital.wallet', title: 'Touch n Go', text: 'Payment of RM20.00 at Starbucks successful', bigText: '', postedAt: now };
+const envA = { pkg: 'my.com.tngdigital.ewallet', title: 'Touch n Go', text: 'Payment of RM12.50 at Starbucks successful', bigText: '', postedAt: now };
+const envA2 = { pkg: 'my.com.tngdigital.ewallet', title: 'Touch n Go', text: 'Payment of RM12.50 at Starbucks successful', bigText: '', postedAt: now };
+const envB = { pkg: 'my.com.tngdigital.ewallet', title: 'Touch n Go', text: 'Payment of RM20.00 at Starbucks successful', bigText: '', postedAt: now };
 eq('rawDigest deterministic', rawDigestOf(envA), rawDigestOf(envA2));
 ok('rawDigest differs', rawDigestOf(envA) !== rawDigestOf(envB));
 
