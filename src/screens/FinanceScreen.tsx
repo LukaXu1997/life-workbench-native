@@ -574,6 +574,7 @@ function OverviewTab({
                     minor={net}
                     cur={c}
                     role="titleMedium"
+                    weight="500"
                     masked={hide}
                     color={net < 0 ? theme.error : theme.onSurface}
                     accessibilityLabel={t('finance.balance') + ' ' + formatMoney(net, c)}
@@ -633,6 +634,7 @@ function OverviewTab({
                           minor={rnet}
                           cur={c}
                           role="titleMedium"
+                          weight="500"
                           masked={hide}
                           color={rnet < 0 ? theme.error : theme.onSurface}
                           accessibilityLabel={t('financeExtra.fixedNet') + ' ' + formatMoney(rnet, c)}

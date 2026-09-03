@@ -8,7 +8,7 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 14, PATCH: 10 } as const;
+export const APP_VERSION = { MAJOR: 2, MINOR: 14, PATCH: 11 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.13.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.13.0"
@@ -19,7 +19,16 @@ export const BUILD_DATE = '2026-09-03';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.14.10 — 2026-09-03
+export const RELEASE_NOTES = `V2.14.11 — 2026-09-03
+Notion 风格 UI/UX 打磨续（剩余金额数字字重收敛，SCHEMA_VERSION 仍为 2，纯前端视觉）：
+
+· 枚举全站 Amount 用法，收敛最后 3 处默认 600 的数据数字 → 500，与已收敛的 hero/子数字层级一致：
+  - 首页「即将到期」信用卡应还金额（titleMedium）
+  - 财务概览「本月收支」结余净额与次级净额（titleMedium ×2）
+· 自此全站金额数字字重统一为 500（hero 与子数字同级）、并带负字距（V2.14.10），层级与观感完全齐整
+· 纯展示层，未碰逻辑 / 存储 / SCHEMA_VERSION；versionCode 21410 → 21411
+
+V2.14.10 — 2026-09-03
 Notion 风格 UI/UX 打磨续（大数字负字距，SCHEMA_VERSION 仍为 2，纯前端视觉）：
 
 · 大金额数字此前只靠 tabular-nums 等宽、未收紧字距，而周围标题（V2.14.7 起）已带负字距，导致 hero/金额数字比标签更松、层级观感不齐

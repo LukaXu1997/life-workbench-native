@@ -618,6 +618,7 @@ export default function HomeScreen({ navigation }: any) {
                 minor={Math.round(card.owe * 100)}
                 cur="CNY"
                 role="titleMedium"
+                weight="500"
                 color={card.warn ? theme.error : theme.onSurface}
               />
             }
