@@ -12,7 +12,8 @@
     "test:notify": "node scripts/notify-test-runner.js",
     "test:security": "node scripts/crypto-secure-test-runner.js",
     "security:check": "node scripts/security-check.js",
-    "verify": "npm run typecheck && npm run test:notify && npm run security:check"
+    "verify": "npm run typecheck && npm run test:notify && npm run security:check",
+    "postinstall": "patch-package"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.2.3",
@@ -52,6 +53,7 @@
   },
   "devDependencies": {
     "@types/react": "~18.3.12",
+    "patch-package": "^8.0.1",
     "typescript": "^5.3.3"
   },
   "overrides": {
