@@ -639,7 +639,7 @@ export function TextField({
   secureTextEntry?: boolean;
   style?: ViewStyle;
   inputRef?: React.RefObject<any>;
-} & React.ComponentProps<typeof Text>) {
+} & Omit<React.ComponentProps<typeof Text>, 'tabIndex'>) {
   const { theme } = useTheme();
   return (
     <View style={style}>

@@ -10,7 +10,9 @@
     "ios": "expo run:ios",
     "typecheck": "tsc --noEmit",
     "test:notify": "node scripts/notify-test-runner.js",
-    "verify": "npm run typecheck && npm run test:notify"
+    "test:security": "node scripts/crypto-secure-test-runner.js",
+    "security:check": "node scripts/security-check.js",
+    "verify": "npm run typecheck && npm run test:notify && npm run security:check"
   },
   "dependencies": {
     "@expo-google-fonts/inter": "^0.2.3",
@@ -25,6 +27,7 @@
     "expo": "~52.0.0",
     "expo-asset": "~11.0.5",
     "expo-constants": "~17.0.8",
+    "expo-crypto": "~14.0.0",
     "expo-device": "~7.0.3",
     "expo-document-picker": "~13.0.0",
     "expo-file-system": "~18.0.12",

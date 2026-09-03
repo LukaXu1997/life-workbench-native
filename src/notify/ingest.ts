@@ -15,6 +15,7 @@ export interface IngestResult {
 
 export const APP_LABELS: Record<string, string> = {
   'my.com.tngdigital.ewallet': "Touch 'n Go",
+  'com.tngdigital.wallet': "Touch 'n Go", // legacy / region variant — keep for backward compat + tests
   'com.grabtaxi.passenger': 'GrabPay',
   'com.shopee.my': 'ShopeePay',
   'com.lazada.android': 'Lazada',

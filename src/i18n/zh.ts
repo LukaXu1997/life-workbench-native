@@ -67,7 +67,7 @@ export const zh = {
     budgetHint: '按月按币种设置额度',
     currency: '默认币种与汇率',
     importBill: '账单导入',
-    importBillHint: '支付宝 · 微信 · TNG 对账单',
+    importBillHint: '支付宝 · 微信 · TNG · Grab · Shopee · Lazada 对账单',
     notifyRecognition: '通知识别记账',
     notifyOn: '已开启',
     notifyOff: '未开启',
@@ -719,7 +719,7 @@ export const zh = {
   importFlow: {
     title: '导入流水',
     pickTitle: '选择账单文件',
-    pickHint: '支持 TNG PDF、支付宝 CSV(GB18030)、微信支付 XLSX、生活工作台 JSON。文件仅在本机解析，不会上传。',
+    pickHint: '支持 TNG PDF、支付宝 CSV(GB18030)、微信支付 XLSX、Grab / Shopee / Lazada CSV、生活工作台 JSON。文件仅在本机解析，不会上传。',
     pickCta: '选择文件…',
     parsing: '正在解析…',
     previewTitle: '导入预览',
@@ -755,10 +755,10 @@ export const zh = {
     pwdLocked: '尝试次数过多，已停止',
     // 账户绑定（§八）
     bindAccount: '绑定账户',
-    bindAccountHint: '该平台的交易将计入此账户（支付宝仅限人民币账户，TNG 仅限林吉特账户）',
+    bindAccountHint: '该平台的交易将计入此账户（支付宝仅限人民币账户；TNG / Grab / Shopee / Lazada 仅限林吉特账户）',
     // 币种推断 / 冲突（§九）
     inferredCny: '根据支付宝来源推断为 CNY',
-    inferredMyr: '根据 TNG 来源推断为 MYR',
+    inferredMyr: '根据 TNG / Grab / Shopee / Lazada 来源推断为 MYR',
     currencyConflict: '币种与平台默认值不一致，请确认后再导入',
     // 交易类型徽章：消费 / 转账 / 返现 等
     txnTransfer: '转账',
@@ -817,6 +817,8 @@ export const zh = {
     restoreFailed: '恢复失败：%{err}',
     undoOk: '已撤销上一次恢复，本地数据已还原',
     undoFailed: '撤销失败：%{err}',
+    secureRandomUnavailable: '无法生成安全随机数，已暂停云端备份以保护你的数据。请重启设备或检查系统安全模块',
+    secureStoreUnavailable: '安全存储不可用，已暂停云端同步。同步密码未被明文保存',
   },
   pdf: {
     wrongPassword: 'PDF 密码错误',

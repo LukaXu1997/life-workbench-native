@@ -1,4 +1,5 @@
-import { encryptText, decryptText } from './crypto';
+import { encryptText, decryptText, SecureRandomUnavailableError } from './crypto';
+import { SecureStoreUnavailableError } from './secure';
 import { t } from './i18n';
 import { store, takeSnapshot, applySnapshot, verifySnapshot, backupForUndo, undoLastRestore as storeUndoLastRestore } from './store';
 import type { Snapshot } from './types';
@@ -86,6 +87,14 @@ export async function backupNow(): Promise<CloudResult> {
     await store.setSbLastSync(Date.now());
     return { ok: true, msg: t('cloud.backupOk') };
   } catch (e: any) {
+    // Hard security failures must surface as recoverable, user-facing messages
+    // and disable the cloud operation — never silently downgrade.
+    if (e instanceof SecureRandomUnavailableError) {
+      return { ok: false, msg: t('cloud.secureRandomUnavailable') };
+    }
+    if (e instanceof SecureStoreUnavailableError) {
+      return { ok: false, msg: t('cloud.secureStoreUnavailable') };
+    }
     return { ok: false, msg: t('cloud.backupFailed', { err: e?.message || String(e) }) };
   }
 }

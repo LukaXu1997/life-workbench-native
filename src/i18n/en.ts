@@ -67,7 +67,7 @@ export const en = {
     budgetHint: 'Set limits per month and currency',
     currency: 'Default currency & rate',
     importBill: 'Import statements',
-    importBillHint: 'Alipay · WeChat · TNG',
+    importBillHint: 'Alipay · WeChat · TNG · Grab · Shopee · Lazada',
     notifyRecognition: 'Notification bookkeeping',
     notifyOn: 'On',
     notifyOff: 'Off',
@@ -719,7 +719,7 @@ export const en = {
   importFlow: {
     title: 'Import transactions',
     pickTitle: 'Choose a statement file',
-    pickHint: 'Supports TNG PDF, Alipay CSV (GB18030), WeChat XLSX, and life-workbench JSON. Parsed on-device only — never uploaded.',
+    pickHint: 'Supports TNG PDF, Alipay CSV (GB18030), WeChat XLSX, Grab / Shopee / Lazada CSV, and life-workbench JSON. Parsed on-device only — never uploaded.',
     pickCta: 'Choose file…',
     parsing: 'Parsing…',
     previewTitle: 'Import preview',
@@ -754,10 +754,10 @@ export const en = {
     pwdLocked: 'Too many attempts, stopped',
     // account binding (§八)
     bindAccount: 'Bound account',
-    bindAccountHint: 'Transactions from this platform post to this account (Alipay → CNY only, TNG → MYR only)',
+    bindAccountHint: 'Transactions from this platform post to this account (Alipay → CNY only; TNG / Grab / Shopee / Lazada → MYR only)',
     // currency inference / conflict (§九)
     inferredCny: 'Currency inferred as CNY from Alipay',
-    inferredMyr: 'Currency inferred as MYR from TNG',
+    inferredMyr: 'Currency inferred as MYR from TNG / Grab / Shopee / Lazada',
     currencyConflict: 'File currency conflicts with the platform default; confirm before importing',
     // Transaction-type badges: spend / transfer / cashback etc.
     txnTransfer: 'Transfer',
@@ -816,6 +816,8 @@ export const en = {
     restoreFailed: 'Restore failed: %{err}',
     undoOk: 'Last restore undone; local data restored',
     undoFailed: 'Undo failed: %{err}',
+    secureRandomUnavailable: 'Unable to generate a secure random value; cloud backup is paused to protect your data. Restart the device or check the system security module',
+    secureStoreUnavailable: 'Secure storage is unavailable; cloud sync is paused. Your sync password was not stored in plaintext',
   },
   pdf: {
     wrongPassword: 'Wrong PDF password',

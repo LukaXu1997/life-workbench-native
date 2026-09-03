@@ -451,20 +451,46 @@ let migrationPromise: Promise<void> | null = null;
 
 // Move any plaintext secrets left in AsyncStorage into Android secure storage.
 // Idempotent: it only acts when a plaintext value still exists. Call once per launch.
+//
+// Safety contract:
+//   - The legacy plaintext is deleted ONLY AFTER the value is confirmed written
+//     to the OS secure store (round-trip read-back matches).
+//   - If the secure store is unavailable, the STRICT sync password is left in
+//     place (we must never delete a password we failed to migrate) and sync is
+//     disabled upstream via the recoverable error. No secret is ever logged.
 export async function migrateSecrets(): Promise<void> {
+  // --- Strict secret: sync password (never downgraded to AsyncStorage) ---
   try {
     const oldPass = await getJSON<string>(KEYS.syncPass, '');
     if (oldPass) {
+      // secureSet throws SecureStoreUnavailableError if the OS store is missing;
+      // in that case we keep the legacy plaintext and let sync stay disabled.
       await secureSet(SECURE_KEYS.syncPass, oldPass);
-      await AsyncStorage.removeItem(KEYS.syncPass);
+      const confirmed = await secureGet(SECURE_KEYS.syncPass);
+      if (confirmed === oldPass) {
+        await AsyncStorage.removeItem(KEYS.syncPass);
+      }
     }
+  } catch (e) {
+    // Best-effort: secure store may be unavailable on some emulators/CI.
+    // Log the error name only — never the password or any secret material.
+    console.warn(
+      `[store] migrateSecrets: sync password not migrated (${e instanceof Error ? e.name : 'unknown'})`
+    );
+  }
+
+  // --- Non-secret: Supabase anon key (downgrade-friendly, but still verify) ---
+  try {
     const oldKey = await getJSON<string>(KEYS.sbKey, '');
     if (oldKey) {
       await secureSet(SECURE_KEYS.sbKey, oldKey);
-      await AsyncStorage.removeItem(KEYS.sbKey);
+      const confirmed = await secureGet(SECURE_KEYS.sbKey);
+      if (confirmed === oldKey) {
+        await AsyncStorage.removeItem(KEYS.sbKey);
+      }
     }
   } catch {
-    /* best-effort; secure store may be unavailable on some emulators */
+    /* non-fatal; the anon key is not a secret */
   }
 }
 

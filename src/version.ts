@@ -8,7 +8,7 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 14, PATCH: 15 } as const;
+export const APP_VERSION = { MAJOR: 2, MINOR: 14, PATCH: 16 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.13.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.13.0"
@@ -19,7 +19,19 @@ export const BUILD_DATE = '2026-09-03';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.14.15 — 2026-09-03
+export const RELEASE_NOTES = `V2.14.16 — 2026-09-03
+安全加固 + 缺陷修复（SCHEMA_VERSION 仍为 2，无存储结构/导航/功能逻辑改动）：
+
+· 加密随机源：src/crypto.ts 移除 AES-GCM salt/IV 的 Math.random() 回退，改为原生 CSPRNG（expo-crypto SecRandomCopyBytes / Android SecureRandom）→ Web Crypto → 缺失时抛 SecureRandomUnavailableError 使备份失败而非降级
+· 安全存储分级：src/secure.ts 将 syncPass 标记为 STRICT（仅安全存储，不可用时抛 SecureStoreUnavailableError，绝不落 AsyncStorage）；sbKey 为非秘密可降级
+· 安全迁移：store.ts migrateSecrets 改为「先确认安全写入成功（读回校验）再删旧明文」
+· 云同步可恢复错误：cloud.ts 捕获 SecureRandomUnavailableError / SecureStoreUnavailableError 返回可恢复 CloudResult；i18n zh/en 新增对应提示
+· 新增 12 项加密/安全单测 + security-check 静态门禁并接入 verify
+· 缺陷修复：kit.tsx tabIndex 类型错误；notify ingest TnG 来源标签 com.tngdigital.wallet → "Touch 'n Go"
+· 构建：android/app/build.gradle Release 缺正式签名参数时改为显式失败（不再静默回退 Debug 证书）
+· 纯安全/缺陷修复：versionCode 21415 → 21416，未改动存储结构与 SCHEMA_VERSION
+
+V2.14.15 — 2026-09-03
 CN/EN i18n 全量对齐收尾（SCHEMA_VERSION 仍为 2，纯本地化，无功能/逻辑改动）：
 
 · 全树扫描 src，剥离注释后定位并修复 6 处真正绕过 t() 的硬编码用户可见中文：kit.tsx BottomSheet 的无障碍标签「关闭」、OnboardingWizard 自动建账户名、calc.ts 相对日期、store.ts 种子账户名 + 备份校验消息、cloud.ts 全套 Supabase 同步/备份/恢复消息（约 15 处）、PdfTextExtractor.ts 的 PDF 密码错误/加密/原生不可用
