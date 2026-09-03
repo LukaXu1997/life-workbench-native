@@ -20,6 +20,7 @@ import { VERSION_NAME } from './version';
 import { clampDay, migrateTxns } from './migration';
 import { secureGet, secureSet, secureDelete, SECURE_KEYS } from './secure';
 import { sha256 } from '@noble/hashes/sha256';
+import { t } from './i18n';
 
 // Key names MUST match the PWA (wb_life_*) so backups are 1:1 compatible.
 export const KEYS = {
@@ -120,10 +121,10 @@ export function defaultFx(): FxSetting {
 export function defaultAccounts(): Account[] {
   const now = Date.now();
   return [
-    { id: uid('a'), name: '马币现金', type: 'cash', currency: 'MYR', includeInNetWorth: true, showOnHome: true, order: 0, createdAt: now, balanceMinor: 0 },
-    { id: uid('a'), name: '马币银行卡', type: 'debit', currency: 'MYR', includeInNetWorth: true, showOnHome: true, order: 1, createdAt: now, balanceMinor: 0 },
-    { id: uid('a'), name: '人民币银行卡', type: 'debit', currency: 'CNY', includeInNetWorth: true, showOnHome: true, order: 2, createdAt: now, balanceMinor: 0 },
-    { id: uid('a'), name: '人民币信用卡', type: 'credit', currency: 'CNY', includeInNetWorth: false, showOnHome: true, order: 3, createdAt: now, creditLimitMinor: 1000000, currentBillMinor: 0, unbilledMinor: 0, repaidMinor: 0, stmtDay: null, dueDay: null },
+    { id: uid('a'), name: t('seed.cashMyr'), type: 'cash', currency: 'MYR', includeInNetWorth: true, showOnHome: true, order: 0, createdAt: now, balanceMinor: 0 },
+    { id: uid('a'), name: t('seed.debitMyr'), type: 'debit', currency: 'MYR', includeInNetWorth: true, showOnHome: true, order: 1, createdAt: now, balanceMinor: 0 },
+    { id: uid('a'), name: t('seed.debitCny'), type: 'debit', currency: 'CNY', includeInNetWorth: true, showOnHome: true, order: 2, createdAt: now, balanceMinor: 0 },
+    { id: uid('a'), name: t('seed.creditCny'), type: 'credit', currency: 'CNY', includeInNetWorth: false, showOnHome: true, order: 3, createdAt: now, creditLimitMinor: 1000000, currentBillMinor: 0, unbilledMinor: 0, repaidMinor: 0, stmtDay: null, dueDay: null },
   ];
 }
 
@@ -390,11 +391,11 @@ export async function takeSnapshot(): Promise<Snapshot> {
 
 // Validate a snapshot's integrity and detect empty backups.
 export function verifySnapshot(s: Partial<Snapshot>): { ok: boolean; empty: boolean; msg: string } {
-  if (!s || typeof s !== 'object') return { ok: false, empty: false, msg: '备份格式无效' };
+  if (!s || typeof s !== 'object') return { ok: false, empty: false, msg: t('backup.invalidFormat') };
   if (s.checksum) {
     const { checksum, ...rest } = s as Record<string, any>;
     const calc = toHex(sha256(JSON.stringify(rest)));
-    if (calc !== s.checksum) return { ok: false, empty: false, msg: '备份校验失败（可能损坏或被篡改）' };
+    if (calc !== s.checksum) return { ok: false, empty: false, msg: t('backup.checksumFailed') };
   }
   const isEmpty =
     (!s.txns || s.txns.length === 0) &&

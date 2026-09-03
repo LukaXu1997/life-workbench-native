@@ -1,4 +1,5 @@
 import { encryptText, decryptText } from './crypto';
+import { t } from './i18n';
 import { store, takeSnapshot, applySnapshot, verifySnapshot, backupForUndo, undoLastRestore as storeUndoLastRestore } from './store';
 import type { Snapshot } from './types';
 
@@ -23,10 +24,10 @@ async function downloadDecrypted(): Promise<Snapshot> {
   const cfg = await store.getSbConfig();
   const pass = await store.getSyncPass();
   if (!cfg.url || !cfg.key || !cfg.bucket || !cfg.path) {
-    throw new Error('请先在「设置」填写并保存 Supabase 配置');
+    throw new Error(t('cloud.cfgMissing'));
   }
   if (!pass) {
-    throw new Error('请先输入加密密码（同步密码）');
+    throw new Error(t('cloud.passMissing'));
   }
   const base = sbBase(cfg.url);
   const path = cfg.path.trim().replace(/^\/+/, '');
@@ -42,14 +43,14 @@ async function downloadDecrypted(): Promise<Snapshot> {
   };
   const res = await fetch(url, { method: 'GET', headers });
   if (!res.ok) {
-    throw new Error(`下载失败 ${res.status}`);
+    throw new Error(t('cloud.downloadFailed', { status: res.status }));
   }
   const enc = await res.text();
   let json: string;
   try {
     json = await decryptText(enc, pass);
   } catch {
-    throw new Error('解密失败：密码不正确或备份文件无效');
+    throw new Error(t('cloud.decryptFailed'));
   }
   return JSON.parse(json) as Snapshot;
 }
@@ -59,10 +60,10 @@ export async function backupNow(): Promise<CloudResult> {
     const cfg = await store.getSbConfig();
     const pass = await store.getSyncPass();
     if (!cfg.url || !cfg.key || !cfg.bucket || !cfg.path) {
-      return { ok: false, msg: '请先在「设置」填写并保存 Supabase 配置' };
+      return { ok: false, msg: t('cloud.cfgMissing') };
     }
     if (!pass) {
-      return { ok: false, msg: '请先在「设置」设置加密密码（同步密码）' };
+      return { ok: false, msg: t('cloud.passMissingSettings') };
     }
     const snap = await takeSnapshot();
     const json = JSON.stringify(snap);
@@ -79,13 +80,13 @@ export async function backupNow(): Promise<CloudResult> {
     };
     const res = await fetch(url, { method: 'POST', headers, body: enc });
     if (!res.ok) {
-      const t = await res.text().catch(() => '');
-      return { ok: false, msg: `上传失败 ${res.status}: ${t.slice(0, 160)}` };
+      const body = await res.text().catch(() => '');
+      return { ok: false, msg: t('cloud.uploadFailed', { status: res.status, detail: body.slice(0, 160) }) };
     }
     await store.setSbLastSync(Date.now());
-    return { ok: true, msg: '已备份到 Supabase ✓' };
+    return { ok: true, msg: t('cloud.backupOk') };
   } catch (e: any) {
-    return { ok: false, msg: '备份失败：' + (e?.message || String(e)) };
+    return { ok: false, msg: t('cloud.backupFailed', { err: e?.message || String(e) }) };
   }
 }
 
@@ -99,7 +100,7 @@ export async function previewRestore(): Promise<{ ok: boolean; msg: string; meta
     const data = await downloadDecrypted();
     const v = verifySnapshot(data);
     if (!v.ok) return { ok: false, msg: v.msg };
-    if (v.empty) return { ok: false, msg: '云端备份为空，已拒绝覆盖本地数据' };
+    if (v.empty) return { ok: false, msg: t('cloud.emptyBackup') };
     pendingRestore = data;
     return {
       ok: true,
@@ -112,7 +113,7 @@ export async function previewRestore(): Promise<{ ok: boolean; msg: string; meta
       },
     };
   } catch (e: any) {
-    return { ok: false, msg: '恢复预览失败：' + (e?.message || String(e)) };
+    return { ok: false, msg: t('cloud.previewFailed', { err: e?.message || String(e) }) };
   }
 }
 
@@ -121,26 +122,26 @@ export async function previewRestore(): Promise<{ ok: boolean; msg: string; meta
 //   2) apply the snapshot only after validation
 //   3) never delete local data before the new data is validated
 export async function confirmRestore(): Promise<CloudResult> {
-  if (!pendingRestore) return { ok: false, msg: '没有待恢复的备份，请先点击「恢复」' };
+  if (!pendingRestore) return { ok: false, msg: t('cloud.noPendingRestore') };
   try {
     const v = verifySnapshot(pendingRestore);
     if (!v.ok) return { ok: false, msg: v.msg };
-    if (v.empty) return { ok: false, msg: '云端备份为空，已拒绝覆盖本地数据' };
+    if (v.empty) return { ok: false, msg: t('cloud.emptyBackup') };
     await backupForUndo(); // safe rollback point
     await applySnapshot(pendingRestore);
     await store.setSbLastSync(Date.now());
     pendingRestore = null;
-    return { ok: true, msg: '已从 Supabase 恢复 ✓' };
+    return { ok: true, msg: t('cloud.restoreOk') };
   } catch (e: any) {
-    return { ok: false, msg: '恢复失败：' + (e?.message || String(e)) };
+    return { ok: false, msg: t('cloud.restoreFailed', { err: e?.message || String(e) }) };
   }
 }
 
 export async function undoLastRestore(): Promise<CloudResult> {
   try {
     await storeUndoLastRestore();
-    return { ok: true, msg: '已撤销上一次恢复，本地数据已还原' };
+    return { ok: true, msg: t('cloud.undoOk') };
   } catch (e: any) {
-    return { ok: false, msg: '撤销失败：' + (e?.message || String(e)) };
+    return { ok: false, msg: t('cloud.undoFailed', { err: e?.message || String(e) }) };
   }
 }

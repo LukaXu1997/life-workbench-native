@@ -10,6 +10,16 @@
 
 ---
 
+## V2.14.15 — 2026-09-03
+CN/EN i18n 全量对齐收尾（SCHEMA_VERSION 仍为 2，纯本地化，无功能/逻辑改动）：
+- 全树扫描 src，剥离注释后定位并修复 6 处真正绕过 t() 的硬编码用户可见中文：kit.tsx BottomSheet 的无障碍标签「关闭」、OnboardingWizard 自动建账户名、calc.ts 相对日期、store.ts 种子账户名 + 备份校验消息、cloud.ts 全套 Supabase 同步/备份/恢复消息（约 15 处）、PdfTextExtractor.ts 的 PDF 密码错误/加密/原生不可用
+- zh.ts/en.ts 对称新增 date / seed / backup / cloud / pdf 五组共 36 个键（含 onboarding.defaultNameCny/Myr）
+- 机制：非 React 模块（store/cloud/calc/PdfTextExtractor）通过 src/i18n/index.tsx 的模块级 `export const t` 直接 import 使用，随 I18nProvider 同步维护的 i18n.locale 变化
+- 字典键对称检查 ZH=783 / EN=783，零缺失；历史遗留的「底部导航未本地化」问题早已修复（AppTabBar 用 t(def.labelKey)），本次确认不再是缺口
+- 刻意保留不翻译项：'信用卡还款'、ShopPriority '高/中/低'、路由名 '财务'/'计划'、AppTabBar.name/labelKey（持久化数据/内部标识，本地化会破坏存储兼容与导航）
+- 已构建 APK 并装机验证：tsc 零新增错误、assembleRelease BUILD SUCCESSFUL、Pixel 启动无 FATAL/crash
+- 纯本地化：versionCode 21414 → 21415，未改动存储结构与 SCHEMA_VERSION
+
 ## V2.14.14 — 2026-09-03
 Notion 风格二次精修收口（计划屏待确认列表，SCHEMA_VERSION 仍为 2，纯前端视觉）：
 - 用户重发「其余屏（计划/任务/日记/我的子页）二次精修」指令，本次逐屏读源码复核四屏真实状态：任务屏浮条已在 V2.14.12 收敛；日记屏 / 我的屏 + 子页统一采用 kit 的 ListGroup/NavRow/Switch/TextField + token，已对齐；唯一真实偏差在 **计划屏「待确认交易」列表（PendingScreen）**：

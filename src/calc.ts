@@ -3,6 +3,7 @@
 import type { Txn, Habit, Task, ShopItem, Account, FxSetting, Currency } from './types';
 import { todayStr, ymStr } from './datetime';
 import { formatMoney } from './money';
+import { t } from './i18n';
 
 // recomputeAccounts / cardSummary / financeStats / financeSummary / budgetStatus
 // are defined in src/import/recompute.ts (RN-free, unit-testable) and re-exported
@@ -125,11 +126,17 @@ export function creditCard(
 
 export function relDate(ds: string): string {
   const d = new Date(ds + 'T00:00:00');
-  const t = new Date(todayStr() + 'T00:00:00');
-  const diff = Math.round((d.getTime() - t.getTime()) / 86400000);
-  if (diff === 1) return '明天';
-  if (diff > 1 && diff <= 7) return '周' + ['日', '一', '二', '三', '四', '五', '六'][d.getDay()];
-  return `${d.getMonth() + 1}月${d.getDate()}日`;
+  const now = new Date(todayStr() + 'T00:00:00');
+  const diff = Math.round((d.getTime() - now.getTime()) / 86400000);
+  if (diff === 1) return t('date.tomorrow');
+  if (diff > 1 && diff <= 7) {
+    const wd = [
+      t('date.wd0'), t('date.wd1'), t('date.wd2'), t('date.wd3'),
+      t('date.wd4'), t('date.wd5'), t('date.wd6'),
+    ][d.getDay()];
+    return t('date.weekday', { w: wd });
+  }
+  return t('date.monthDay', { m: d.getMonth() + 1, d: d.getDate() });
 }
 
 export type { ShopItem };

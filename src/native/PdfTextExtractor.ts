@@ -1,4 +1,5 @@
 import { NativeModules } from 'react-native';
+import { t } from '../i18n';
 
 // Thin bridge over the native PdfTextExtractor module. The native side does the
 // actual on-device, network-free extraction (pdfbox-android). The password, if
@@ -21,7 +22,7 @@ export interface ExtractPdfResult {
 export class PdfEncryptedError extends Error {
   wrongPassword: boolean;
   constructor(wrongPassword: boolean) {
-    super(wrongPassword ? 'PDF 密码错误' : 'PDF 已加密，需要密码');
+    super(wrongPassword ? t('pdf.wrongPassword') : t('pdf.encrypted'));
     this.name = 'PdfEncryptedError';
     this.wrongPassword = wrongPassword;
   }
@@ -33,7 +34,7 @@ export class PdfEncryptedError extends Error {
  * encryption is reported via the resolved `encrypted` flag.
  */
 export async function extractPdfText(uri: string, password?: string): Promise<ExtractPdfResult> {
-  if (!Native) throw new Error('PdfTextExtractor native module 不可用');
+  if (!Native) throw new Error(t('pdf.nativeUnavailable'));
   const r = (await Native.extractText(uri, password ?? null)) as ExtractPdfResult;
   return r;
 }

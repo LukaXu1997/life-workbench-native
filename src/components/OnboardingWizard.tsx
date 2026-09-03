@@ -75,7 +75,7 @@ export function OnboardingWizard({ onDone }: { onDone: () => void }) {
     const saved: Account[] = rows.map((r, i) => {
       const bal = parseBalanceToMinor(r.balanceStr, r.currency);
       const ex = byId.get(r.id);
-      const fallbackName = r.currency === 'CNY' ? '人民币账户' : '马币账户';
+      const fallbackName = r.currency === 'CNY' ? t('onboarding.defaultNameCny') : t('onboarding.defaultNameMyr');
       return {
         id: r.id,
         name: r.name.trim() || fallbackName,
