@@ -1,8 +1,8 @@
 diff --git a/node_modules/expo-modules-autolinking/scripts/android/autolinking_implementation.gradle b/node_modules/expo-modules-autolinking/scripts/android/autolinking_implementation.gradle
-index 98c404e..d9265a2 100644
+index 98c404e..b67c5c9 100644
 --- a/node_modules/expo-modules-autolinking/scripts/android/autolinking_implementation.gradle
 +++ b/node_modules/expo-modules-autolinking/scripts/android/autolinking_implementation.gradle
-@@ -329,6 +329,16 @@ if (rootProject instanceof ProjectDescriptor) {
+@@ -329,6 +329,26 @@ if (rootProject instanceof ProjectDescriptor) {
        }
        for (module in modules) {
          for (modulePlugin in module.plugins) {
@@ -13,7 +13,17 @@ index 98c404e..d9265a2 100644
 +          // applies com.android.library to itself, which would clash with :app's
 +          // com.android.application). This mirrors the behavior of newer
 +          // expo-modules-autolinking (2.1.x).
-+          if (!modulePlugin.applyToRootProject) {
++          // NOTE: expo-modules-autolinking@2.0.8 predates the `applyToRootProject` field,
++          // so its ExpoModuleGradlePlugin objects do NOT expose it (accessing it throws
++          // MissingPropertyException). Read it defensively: missing => treat as false =>
++          // skip, which is correct because no module in this project needs a root plugin.
++          def applyToRootProject = false
++          try {
++            applyToRootProject = modulePlugin.applyToRootProject == true
++          } catch (ignore) {
++            applyToRootProject = false
++          }
++          if (!applyToRootProject) {
 +            continue
 +          }
            println " ${Emojis.INFORMATION}  ${Colors.YELLOW}Applying gradle plugin${Colors.RESET} '${Colors.GREEN}${modulePlugin.id}${Colors.RESET}' (${module.name}@${module.version})"
