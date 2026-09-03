@@ -24,10 +24,11 @@ jobs:
       MYAPP_RELEASE_KEY_ALIAS: ${{ secrets.MYAPP_RELEASE_KEY_ALIAS }}
       MYAPP_RELEASE_STORE_PASSWORD: ${{ secrets.MYAPP_RELEASE_STORE_PASSWORD }}
       MYAPP_RELEASE_KEY_PASSWORD: ${{ secrets.MYAPP_RELEASE_KEY_PASSWORD }}
-      # Decoded keystore lives ONLY in the runner temp dir and is deleted at
-      # the end of the job (see "Cleanup keystore"). It is never committed,
-      # never printed, and never uploaded as an artifact.
-      MYAPP_RELEASE_STORE_FILE: ${{ runner.temp }}/release.keystore
+      # Decoded keystore path is set at runtime (see "Decode release keystore"
+      # step) into $RUNNER_TEMP and exported to $GITHUB_ENV. It lives ONLY in
+      # the runner temp dir and is deleted at the end of the job (see
+      # "Cleanup keystore"). It is never committed, never printed, and never
+      # uploaded as an artifact.
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -62,7 +63,8 @@ jobs:
 
       - name: Decode release keystore into runner temp
         run: |
-          echo "${{ secrets.MYAPP_RELEASE_STORE_FILE_B64 }}" | base64 -d > "$MYAPP_RELEASE_STORE_FILE"
+          echo "${{ secrets.MYAPP_RELEASE_STORE_FILE_B64 }}" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          echo "MYAPP_RELEASE_STORE_FILE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
 
       - name: Assemble signed Release APK
         working-directory: android
@@ -106,7 +108,7 @@ jobs:
       # never left on disk or swept into a later step / artifact.
       - name: Cleanup keystore
         if: always()
-        run: rm -f "$MYAPP_RELEASE_STORE_FILE" || true
+        run: rm -f "$RUNNER_TEMP/release.keystore" || true
 
 # Notes:
 # - Native modules (e.g. expo-crypto added for the security hardening) are
