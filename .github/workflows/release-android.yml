@@ -24,8 +24,10 @@ jobs:
       MYAPP_RELEASE_KEY_ALIAS: ${{ secrets.MYAPP_RELEASE_KEY_ALIAS }}
       MYAPP_RELEASE_STORE_PASSWORD: ${{ secrets.MYAPP_RELEASE_STORE_PASSWORD }}
       MYAPP_RELEASE_KEY_PASSWORD: ${{ secrets.MYAPP_RELEASE_KEY_PASSWORD }}
-      # Absolute path to the decoded keystore (consumed by android/app/build.gradle).
-      MYAPP_RELEASE_STORE_FILE: ${{ github.workspace }}/android/app/release.keystore
+      # Decoded keystore lives ONLY in the runner temp dir and is deleted at
+      # the end of the job (see "Cleanup keystore"). It is never committed,
+      # never printed, and never uploaded as an artifact.
+      MYAPP_RELEASE_STORE_FILE: ${{ runner.temp }}/release.keystore
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -36,7 +38,7 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install JS dependencies
+      - name: Install JS dependencies (lockfile)
         run: npm ci
 
       - name: Setup JDK 17
@@ -51,16 +53,16 @@ jobs:
       - name: Install SDK packages and accept licenses
         run: |
           yes | sdkmanager --licenses
-          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-
-      - name: Decode release keystore
-        run: |
-          echo "${{ secrets.MYAPP_RELEASE_STORE_FILE_B64 }}" | base64 -d > android/app/release.keystore
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;26.1.10909125"
 
       # Gate: tsc + notify tests + crypto/secure tests + static security gate.
       # This must be green before we are allowed to ship a signed build.
       - name: Run verification gate (tsc + tests + security gate)
         run: npm run verify
+
+      - name: Decode release keystore into runner temp
+        run: |
+          echo "${{ secrets.MYAPP_RELEASE_STORE_FILE_B64 }}" | base64 -d > "$MYAPP_RELEASE_STORE_FILE"
 
       - name: Assemble signed Release APK
         working-directory: android
@@ -73,25 +75,42 @@ jobs:
             echo "ERROR: APK not found at $APK" >&2
             exit 1
           fi
-          echo "=== apksigner verify (print-certs) ==="
-          $ANDROID_HOME/build-tools/35.0.0/apksigner verify --print-certs "$APK"
-          if $ANDROID_HOME/build-tools/35.0.0/apksigner verify --print-certs "$APK" | grep -qi "androiddebugkey"; then
+          echo "=== apksigner verify --verbose --print-certs ==="
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK"
+          if "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK" \
+              | grep -Ei "Android Debug|androiddebugkey"; then
             echo "ERROR: APK is signed with the DEBUG certificate! Refusing to publish." >&2
             exit 1
           fi
-          echo "OK: APK is signed with the official release keystore (no androiddebugkey)."
+          echo "OK: APK is signed with the official release keystore (no debug cert)."
+
+      - name: Determine app version
+        id: appver
+        run: |
+          VER=$(grep -oE 'versionName "[0-9]+\.[0-9]+\.[0-9]+"' android/app/build.gradle \
+                | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          echo "version=$VER" >> "$GITHUB_OUTPUT"
+
+      - name: Rename APK with version
+        run: |
+          mv android/app/build/outputs/apk/release/app-release.apk \
+             "android/app/build/outputs/apk/release/life-workbench-${{ steps.appver.outputs.version }}-release.apk"
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-${{ github.ref_name }}
-          path: android/app/build/outputs/apk/release/app-release.apk
+          name: life-workbench-release-${{ steps.appver.outputs.version }}
+          path: android/app/build/outputs/apk/release/life-workbench-${{ steps.appver.outputs.version }}-release.apk
+
+      # Defense in depth: remove the decoded keystore from the runner so it is
+      # never left on disk or swept into a later step / artifact.
+      - name: Cleanup keystore
+        if: always()
+        run: rm -f "$MYAPP_RELEASE_STORE_FILE" || true
 
 # Notes:
 # - Native modules (e.g. expo-crypto added for the security hardening) are
 #   resolved at build time via expo-modules-autolinking from node_modules, so no
 #   `npx expo prebuild` step is required here.
-# - If your project pins a different compileSdk / build-tools, adjust the
-#   `sdkmanager` line and the apksigner path above to match.
-# - Secrets are never printed; the signing password/env vars stay in GitHub
-#   Actions secrets and are never written to the repo or logs.
+# - Secrets (keystore b64, alias, passwords) are never printed; they live only
+#   in GitHub Actions secrets and are written solely to the runner temp dir.
