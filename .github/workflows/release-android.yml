@@ -1,0 +1,97 @@
+name: Android Release (signed)
+
+# Builds a signed Release APK on tag push or manual dispatch.
+# The Release build is designed to FAIL without the signing secrets (see
+# android/app/build.gradle: buildTypes.release throws when MYAPP_RELEASE_*
+# are absent), so we can never accidentally ship a debug-signed artifact.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build signed Release APK
+    runs-on: ubuntu-latest
+    env:
+      # --- Required GitHub Actions secrets -----------------------------------
+      # MYAPP_RELEASE_STORE_FILE_B64 : base64 of your .keystore  (base64 -w0 release.keystore)
+      # MYAPP_RELEASE_KEY_ALIAS      : key alias inside the keystore
+      # MYAPP_RELEASE_STORE_PASSWORD : keystore password
+      # MYAPP_RELEASE_KEY_PASSWORD   : key password
+      MYAPP_RELEASE_KEY_ALIAS: ${{ secrets.MYAPP_RELEASE_KEY_ALIAS }}
+      MYAPP_RELEASE_STORE_PASSWORD: ${{ secrets.MYAPP_RELEASE_STORE_PASSWORD }}
+      MYAPP_RELEASE_KEY_PASSWORD: ${{ secrets.MYAPP_RELEASE_KEY_PASSWORD }}
+      # Absolute path to the decoded keystore (consumed by android/app/build.gradle).
+      MYAPP_RELEASE_STORE_FILE: ${{ github.workspace }}/android/app/release.keystore
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install JS dependencies
+        run: npm ci
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages and accept licenses
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Decode release keystore
+        run: |
+          echo "${{ secrets.MYAPP_RELEASE_STORE_FILE_B64 }}" | base64 -d > android/app/release.keystore
+
+      # Gate: tsc + notify tests + crypto/secure tests + static security gate.
+      # This must be green before we are allowed to ship a signed build.
+      - name: Run verification gate (tsc + tests + security gate)
+        run: npm run verify
+
+      - name: Assemble signed Release APK
+        working-directory: android
+        run: ./gradlew assembleRelease
+
+      - name: Verify APK signature is NOT the debug certificate
+        run: |
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          if [ ! -f "$APK" ]; then
+            echo "ERROR: APK not found at $APK" >&2
+            exit 1
+          fi
+          echo "=== apksigner verify (print-certs) ==="
+          $ANDROID_HOME/build-tools/35.0.0/apksigner verify --print-certs "$APK"
+          if $ANDROID_HOME/build-tools/35.0.0/apksigner verify --print-certs "$APK" | grep -qi "androiddebugkey"; then
+            echo "ERROR: APK is signed with the DEBUG certificate! Refusing to publish." >&2
+            exit 1
+          fi
+          echo "OK: APK is signed with the official release keystore (no androiddebugkey)."
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-${{ github.ref_name }}
+          path: android/app/build/outputs/apk/release/app-release.apk
+
+# Notes:
+# - Native modules (e.g. expo-crypto added for the security hardening) are
+#   resolved at build time via expo-modules-autolinking from node_modules, so no
+#   `npx expo prebuild` step is required here.
+# - If your project pins a different compileSdk / build-tools, adjust the
+#   `sdkmanager` line and the apksigner path above to match.
+# - Secrets are never printed; the signing password/env vars stay in GitHub
+#   Actions secrets and are never written to the repo or logs.
