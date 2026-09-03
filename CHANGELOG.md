@@ -10,6 +10,13 @@
 
 ---
 
+## V2.14.12 — 2026-09-03
+Notion 风格二次精修（任务屏批量操作浮条双层深度收敛，SCHEMA_VERSION 仍为 2，纯前端视觉）：
+- 任务屏多选「批量操作」浮条此前同时使用边框（borderWidth + outlineVariant）与强阴影（shadowOpacity 0.14 / shadowRadius 14 / elevation 6），违反 §十「边框+底色+阴影不同时用」的克制原则，且 elevation 高于全站其它浮层（token 最高 3 级 = elevation 4）
+- 收敛为单层软阴影：删边框、shadowOpacity 0.08 / shadowRadius 10 / shadowOffset height 3 / elevation 4（token 3 级），保留 surface 底色与 radius.xl 浮条形态，与全站浮层深度一致
+- 其余三屏（计划/日记/我的+子页）经扫描已基于 kit 且近扁平，本次不动，零回归风险
+- 纯展示层：仅动 TasksScreen 浮条 style，未碰逻辑 / 存储 / SCHEMA_VERSION；versionCode 21411 → 21412
+
 ## V2.14.11 — 2026-09-03
 Notion 风格 UI/UX 打磨续（剩余金额数字字重收敛，SCHEMA_VERSION 仍为 2，纯前端视觉）：
 - 枚举全站 Amount 用法，收敛最后 3 处默认 600 的数据数字 → 500，与已收敛的 hero/子数字层级一致：
