@@ -799,15 +799,13 @@ function BatchActionBar({
         right: 12,
         bottom: insets.bottom + TAB_BAR_FLOAT_GAP + TAB_BAR_HEIGHT + 12,
         backgroundColor: theme.surface,
-        borderWidth: StyleSheet.hairlineWidth,
-        borderColor: theme.outlineVariant,
         borderRadius: radius.xl,
         padding: space.sm,
-        shadowColor: '#000',
-        shadowOpacity: 0.14,
-        shadowRadius: 14,
-        shadowOffset: { width: 0, height: 4 },
-        elevation: 6,
+        shadowColor: '#0F0F0F',
+        shadowOpacity: 0.08,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 3 },
+        elevation: 4,
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs }}>
