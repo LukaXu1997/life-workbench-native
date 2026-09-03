@@ -8,7 +8,7 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 3, MINOR: 0, PATCH: 2 } as const;
+export const APP_VERSION = { MAJOR: 3, MINOR: 0, PATCH: 3 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.13.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.13.0"
@@ -19,7 +19,17 @@ export const BUILD_DATE = '2026-09-03';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V3.0.2 — 2026-09-03
+export const RELEASE_NOTES = `V3.0.3 — 2026-09-03
+账单导入 + 通知来源包名去重（SCHEMA_VERSION 仍为 2，无存储结构/导航改动）：
+
+· 马币电子钱包账单导入：新增 MYR 电子钱包 CSV 适配器（src/import/adapters/myrEwalletCsv.ts），支持 TnG / Grab / Shopee / Lazada 等导出的对账单 CSV，自动识别来源格式、解析日期/金额/商户/类型并归一为标准交易结构，导入流程 UI（ImportFlowModal）走「预览 → 确认 → 入账」，不自动写入
+· 导入账户解析：accountResolver 按账户名/别名/尾号匹配到既有账户，匹配不到时显式提示，避免挂错账户或静默落到默认账户
+· 导入模型与模式：models.ts / schemas.ts 补齐导入来源与字段校验，runImport 统一编排（解析 → 校验 → 去重 → 预览），附 phase9 测试
+· 通知识别来源去重：删除两个写法错误的来源包名 —— TnG 的 com.tngdigital.wallet（正确为 my.com.tngdigital.ewallet）、Grab 的 com.grabtaxi（正确为 com.grabtaxi.passenger），在 APP_LABELS / EWALLET / TXN_CAPTURE_PACKAGES 与相关测试中只保留官方包名，识别来源列表不再出现同一 App 的两个选项
+· 工程：release-artifacts/、.tmptest_tng/ 等本地构建与测试产物纳入 .gitignore，不再有 51MB APK 误入库风险
+· 纯增量：versionCode 30002 → 30003，未改动 SCHEMA_VERSION 与既有存储结构
+
+V3.0.2 — 2026-09-03
 维护发布版（与 V3.0.1 功能内容完全一致，SCHEMA_VERSION 仍为 2，无存储结构/导航/功能逻辑改动）：
 
 · 版本号由 3.0.1 升为 3.0.2（versionCode 30001 → 30002）
