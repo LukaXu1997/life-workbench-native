@@ -31,7 +31,7 @@ import java.util.regex.Pattern
 
 /** Debug switch. Diagnostics record package name + boolean match flags + screen length
  *  (no screen text, no amount). Set to false for a production-stable build. */
-private const val DIAGNOSE = true
+private const val DIAGNOSE = false
 private const val TAG = "TxnCapture"
 private fun d(msg: String) { if (DIAGNOSE) Log.d(TAG, msg) }
 

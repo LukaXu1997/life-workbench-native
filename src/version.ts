@@ -8,7 +8,7 @@
 // versionCode = MAJOR * 10000 + MINOR * 100 + PATCH  (must strictly increase on every published build)
 // Display uses uppercase V (V1.0.0); Android versionName stays "1.0.0" (no V).
 
-export const APP_VERSION = { MAJOR: 2, MINOR: 14, PATCH: 12 } as const;
+export const APP_VERSION = { MAJOR: 2, MINOR: 14, PATCH: 13 } as const;
 
 export const VERSION_NAME = `${APP_VERSION.MAJOR}.${APP_VERSION.MINOR}.${APP_VERSION.PATCH}`; // "2.13.0"
 export const DISPLAY_VERSION = `V${VERSION_NAME}`; // "V2.13.0"
@@ -19,7 +19,14 @@ export const BUILD_DATE = '2026-09-03';
 
 // Latest release notes, shown in 设置 -> 关于 -> 查看更新内容.
 // Keep in sync with CHANGELOG.md (top entry).
-export const RELEASE_NOTES = `V2.14.12 — 2026-09-03
+export const RELEASE_NOTES = `V2.14.13 — 2026-09-03
+收口：关闭实时捕获自检诊断日志（DIAGNOSE=false），出干净正式版：
+
+· TxnCaptureService.kt 的 DIAGNOSE 由 true 置 false，仅静音诊断 Log.d（包名 + 布尔匹配旗标 + 屏幕长度，不含屏幕文字与金额），实时捕获逻辑与门控完全不变、可逆
+· 此前留 DIAGNOSE=true 供用户自验拼多多付款成功页捕获（success=true + CAPTURED）；现确认行为稳定后出干净版
+· 纯日志开关，未碰逻辑 / 存储 / SCHEMA_VERSION；versionCode 21412 → 21413
+
+V2.14.12 — 2026-09-03
 Notion 风格二次精修（任务屏批量操作浮条双层深度收敛，SCHEMA_VERSION 仍为 2，纯前端视觉）：
 
 · 任务屏多选「批量操作」浮条此前同时使用边框（borderWidth + outlineVariant）与强阴影（shadowOpacity 0.14 / shadowRadius 14 / elevation 6），违反 §十「边框+底色+阴影不同时用」的克制原则，且 elevation 高于全站其它浮层（token 最高 3 级 = elevation 4）
