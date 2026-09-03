@@ -824,4 +824,10 @@ export const en = {
     encrypted: 'PDF is encrypted; password required',
     nativeUnavailable: 'PdfTextExtractor native module unavailable',
   },
+  // Release notes page (the notes themselves live in the bilingual data in src/changelog.ts)
+  changelog: {
+    subtitle: '%{count} versions · newest first',
+    latest: 'Latest version',
+    empty: 'No release notes yet',
+  },
 };

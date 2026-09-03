@@ -825,4 +825,10 @@ export const zh = {
     encrypted: 'PDF 已加密，需要密码',
     nativeUnavailable: 'PdfTextExtractor 原生模块不可用',
   },
+  // 更新内容页（文案正文见 src/changelog.ts 的双语静态数据）
+  changelog: {
+    subtitle: '共 %{count} 个版本 · 由新到旧',
+    latest: '最新版本',
+    empty: '暂无更新记录',
+  },
 };

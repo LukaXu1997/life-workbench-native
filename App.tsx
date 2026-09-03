@@ -26,6 +26,7 @@ import FinancePreferencesScreen from './src/screens/me/FinancePreferencesScreen'
 import NotificationSettingsScreen from './src/screens/me/NotificationSettingsScreen';
 import DataAndSecurityScreen from './src/screens/me/DataAndSecurityScreen';
 import AboutScreen from './src/screens/me/AboutScreen';
+import ChangelogScreen from './src/screens/me/ChangelogScreen';
 import { AppTabBar } from './src/components/AppTabBar';
 import { NotifyNavProvider, useNotifyNav } from './src/notify/NotifyNav';
 import { ensureReceiverStarted, startNotifyReceiver, getNotifySettings, applyNotifyConfig } from './src/notify/pendingStore';
@@ -107,6 +108,7 @@ function MeStack() {
       <MeNav.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
       <MeNav.Screen name="DataAndSecurity" component={DataAndSecurityScreen} />
       <MeNav.Screen name="About" component={AboutScreen} />
+      <MeNav.Screen name="Changelog" component={ChangelogScreen} />
     </MeNav.Navigator>
   );
 }

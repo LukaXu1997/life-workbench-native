@@ -10,6 +10,13 @@
 
 ---
 
+## V3.0.4 — 2026-09-03
+更新内容展示产品化（SCHEMA_VERSION 仍为 2，无存储结构/导航/功能逻辑改动）：
+- 新增「更新内容」页面（ChangelogScreen）：将原先散落在 `version.ts` 的开发者风格 `RELEASE_NOTES` 迁移为 `src/changelog.ts` 中的中英文双语、面向普通用户的产品化文案，按版本倒序展示，层级清晰
+- 双语支持：中文界面显示完整中文更新内容，英文界面显示自然英文，切换语言后已打开页面即时更新（依赖 `useI18n().resolved` 重新渲染），不做运行时机器翻译
+- 新增 `scripts/changelog-test-runner.js`，把双语完整性、条数、禁用开发术语、倒序与首版 = DISPLAY_VERSION 接入 `npm run verify` 门禁
+- 纯增量：versionCode 30003 → 30004，未改动 SCHEMA_VERSION 与既有存储结构，不影响现有中英文设置及其他 i18n 文案
+
 ## V3.0.3 — 2026-09-03
 账单导入 + 通知来源包名去重（SCHEMA_VERSION 仍为 2，无存储结构/导航改动）：
 - 马币电子钱包账单导入：新增 MYR 电子钱包 CSV 适配器（`src/import/adapters/myrEwalletCsv.ts`），支持 TnG / Grab / Shopee / Lazada 等导出的对账单 CSV，自动识别来源格式、解析日期/金额/商户/类型并归一为标准交易结构；导入流程 UI（`ImportFlowModal`）走「预览 → 确认 → 入账」，不自动写入

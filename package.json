@@ -11,8 +11,9 @@
     "typecheck": "tsc --noEmit",
     "test:notify": "node scripts/notify-test-runner.js",
     "test:security": "node scripts/crypto-secure-test-runner.js",
+    "test:changelog": "node scripts/changelog-test-runner.js",
     "security:check": "node scripts/security-check.js",
-    "verify": "npm run typecheck && npm run test:notify && npm run security:check",
+    "verify": "npm run typecheck && npm run test:notify && npm run test:changelog && npm run security:check",
     "postinstall": "patch-package"
   },
   "dependencies": {
