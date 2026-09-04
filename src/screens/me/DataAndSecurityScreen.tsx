@@ -13,6 +13,7 @@ import { useI18n } from '../../i18n';
 import { store } from '../../store';
 import { setSecureWindow } from '../../secureWindow';
 import { backupNow, previewRestore, confirmRestore, undoLastRestore } from '../../cloud';
+import { exportLocalBackup, previewLocalRestore, confirmLocalRestore } from '../../localBackup';
 import { Button, M3Text, Switch, TextField } from '../../components/ui';
 import { ListGroup, NavRow, PrimaryButton } from '../../components/kit';
 import { AppBottomSheet } from '../../components/anim';
@@ -63,6 +64,7 @@ export default function DataAndSecurityScreen({ navigation }: { navigation: any 
   const [status, setStatus] = useState('');
   const [busy, setBusy] = useState(false);
   const [restoreMeta, setRestoreMeta] = useState<any>(null);
+  const [restoreSource, setRestoreSource] = useState<'cloud' | 'local'>('cloud');
   const [canUndo, setCanUndo] = useState(false);
 
   const [onEntry, setOnEntry] = useState(false);
@@ -100,13 +102,33 @@ export default function DataAndSecurityScreen({ navigation }: { navigation: any 
     setBusy(true);
     const r = await previewRestore();
     setBusy(false);
-    if (r.ok && r.meta) setRestoreMeta(r.meta);
-    else setStatus(r.msg);
+    if (r.ok && r.meta) {
+      setRestoreMeta(r.meta);
+      setRestoreSource('cloud');
+    } else setStatus(r.msg);
+  };
+
+  const onExport = async () => {
+    setBusy(true);
+    const r = await exportLocalBackup();
+    setBusy(false);
+    setStatus(r.msg);
+  };
+
+  const requestLocalPreview = async () => {
+    setBusy(true);
+    const r = await previewLocalRestore();
+    setBusy(false);
+    if (r.ok && r.meta) {
+      setRestoreMeta(r.meta);
+      setRestoreSource('local');
+    } else if (r.msg) setStatus(r.msg);
   };
 
   const doConfirmRestore = async () => {
     setBusy(true);
-    const r = await confirmRestore();
+    const r =
+      restoreSource === 'local' ? await confirmLocalRestore() : await confirmRestore();
     setBusy(false);
     setRestoreMeta(null);
     setStatus(r.msg);
@@ -233,6 +255,25 @@ export default function DataAndSecurityScreen({ navigation }: { navigation: any 
             trailing={null}
           />
         ) : null}
+      </ListGroup>
+
+      {/* ①½ 本地备份（无需联网）：导出到文件 / 从文件导入，复用同步密码加密 */}
+      <ListGroup
+        title={t('settings.localBackupGroup')}
+        footer={pass ? t('settings.localBackupHint') : t('cloud.passMissingSettings')}
+      >
+        <NavRow
+          icon={ICONS.export}
+          title={busy ? t('common.processing') : t('settings.exportLocal')}
+          onPress={!busy && pass ? onExport : undefined}
+          trailing={null}
+        />
+        <NavRow
+          icon={ICONS.fileImport}
+          title={busy ? t('common.processing') : t('settings.importLocal')}
+          onPress={!busy && pass ? requestLocalPreview : undefined}
+          trailing={null}
+        />
       </ListGroup>
 
       {status ? (
@@ -441,10 +482,10 @@ export default function DataAndSecurityScreen({ navigation }: { navigation: any 
       <AppBottomSheet
         visible={!!restoreMeta}
         onClose={() => setRestoreMeta(null)}
-        title={t('settings.restoreConfirmTitle')}
+        title={restoreSource === 'local' ? t('settings.restoreConfirmLocalTitle') : t('settings.restoreConfirmTitle')}
       >
         <M3Text role="bodyMedium" color={theme.onSurfaceVariant} style={{ marginBottom: space.md, lineHeight: 20 }}>
-          {t('settings.restoreMeta', {
+          {t(restoreSource === 'local' ? 'settings.restoreMetaLocal' : 'settings.restoreMeta', {
             app: restoreMeta?.appVersion,
             schema: restoreMeta?.schemaVersion,
             time: restoreMeta?.exportedAt ? new Date(restoreMeta.exportedAt).toLocaleString() : '-',
