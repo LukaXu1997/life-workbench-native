@@ -34,6 +34,7 @@ import { useBottomContentInset, TAB_BAR_HEIGHT, TAB_BAR_FLOAT_GAP } from '../com
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppBottomSheet } from '../components/anim';
 import type { Task, SubTask, Habit, ShopItem, Priority, HabitType, ShopPriority, Currency, RepeatFrequency } from '../types';
+import { timelineGroups, listRecurring, nextDue, addPeriod as planAddPeriod, habitCalendarMap } from '../plan';
 import {
   shouldShowAddFab,
   classifySchedule,
@@ -159,7 +160,7 @@ function visibleTodoTasks(tasks: Task[], searchText: string, activeTag: string |
   return tasks.filter((x) => !x.completed && matchesQuery(x, q) && matchesTag(x, activeTag));
 }
 
-type Seg = 'calendar' | 'todo' | 'shopping' | 'habit';
+type Seg = 'calendar' | 'todo' | 'shopping' | 'habit' | 'period';
 type UndoState = { msg: string; undo: () => Promise<void> } | null;
 
 // §七 计划页四档：日历（默认落地，合并「今日」视图）/ 待办 / 待买 / 习惯。
@@ -180,7 +181,7 @@ export default function TasksScreen() {
   const d = useData();
   const route = useRoute<any>();
   const resolveSeg = (raw: unknown): Seg => {
-    if (raw === 'calendar' || raw === 'todo' || raw === 'shopping' || raw === 'habit') return raw as Seg;
+    if (raw === 'calendar' || raw === 'todo' || raw === 'shopping' || raw === 'habit' || raw === 'period') return raw as Seg;
     return 'calendar'; // 默认落在日历（含「今日」视图）
   };
   const initialSeg: Seg = resolveSeg(route?.params?.seg);
@@ -253,15 +254,19 @@ export default function TasksScreen() {
     });
   };
   const toggleHabit = async (h: Habit) => {
+    toggleHabitOnDate(h, today);
+  };
+  // #494(c2)：按任意日期打卡（日历选中日 / 时间线今日均可原地打卡），不再写死今天
+  const toggleHabitOnDate = async (h: Habit, date: string) => {
     const list = await store.getHabits();
     const rec = { ...(h.records || {}) };
     if (h.type === 'check') {
-      if (rec[today]) delete rec[today];
-      else rec[today] = 1;
+      if (rec[date]) delete rec[date];
+      else rec[date] = 1;
     } else if (h.type === 'count') {
-      rec[today] = (rec[today] || 0) + 1;
+      rec[date] = (rec[date] || 0) + 1;
     } else {
-      rec[today] = 1;
+      rec[date] = 1;
     }
     const next = list.map((x) => (x.id === h.id ? { ...x, records: rec } : x));
     await store.setHabits(next);
@@ -477,6 +482,7 @@ export default function TasksScreen() {
             { key: 'calendar', label: t('plan.segCalendar') },
             { key: 'todo', label: t('plan.segTodo') },
             { key: 'shopping', label: t('plan.segShopping') },
+            { key: 'period', label: t('plan.segPeriod') },
             { key: 'habit', label: t('plan.segHabit') },
           ] as const).map((s) => {
             const isA = s.key === seg;
@@ -487,9 +493,9 @@ export default function TasksScreen() {
                 accessibilityRole="tab"
                 accessibilityState={{ selected: isA }}
                 accessibilityLabel={s.label}
-                style={{ flex: 1, height: 42, alignItems: 'center', justifyContent: 'center', backgroundColor: isA ? theme.primaryContainer : 'transparent', borderRadius: radius.sm }}
+                style={{ flex: 1, minWidth: 0, height: 42, alignItems: 'center', justifyContent: 'center', backgroundColor: isA ? theme.primaryContainer : 'transparent', borderRadius: radius.sm }}
               >
-                <M3Text role="labelLarge" color={isA ? theme.onPrimaryContainer : theme.onSurfaceVariant}>
+                <M3Text role="labelLarge" color={isA ? theme.onPrimaryContainer : theme.onSurfaceVariant} numberOfLines={1} style={{ textAlign: 'center' }}>
                   {s.label}
                 </M3Text>
               </TouchableOpacity>
@@ -609,6 +615,15 @@ export default function TasksScreen() {
         />
       )}
 
+      {seg === 'period' && (
+        <PeriodView
+          tasks={d.tasks}
+          today={today}
+          showUndo={showUndo}
+          bottomInset={bottomInset}
+        />
+      )}
+
       {seg === 'shopping' && (
         <View style={{ flex: 1, paddingHorizontal: pageMargin, paddingTop: space.sm }}>
           <ShoppingSub
@@ -632,7 +647,7 @@ export default function TasksScreen() {
           activeTag={activeTag}
           onToggle={toggleTask}
           onDelete={deleteTask}
-          onToggleHabit={toggleHabit}
+          onToggleHabit={toggleHabitOnDate}
           onDeleteHabit={deleteHabit}
           confirmDelete={confirmDelete}
           onToggleSubtask={toggleSubtask}
@@ -1124,7 +1139,7 @@ function CalendarSub({
   activeTag: string | null;
   onToggle: (t: Task) => void;
   onDelete: (t: Task) => void;
-  onToggleHabit: (h: Habit) => void;
+  onToggleHabit: (h: Habit, date: string) => void;
   onDeleteHabit: (h: Habit) => void;
   confirmDelete: (name: string, fn: () => void) => void;
   onToggleSubtask: (task: Task, subId: string) => void;
@@ -1133,11 +1148,18 @@ function CalendarSub({
   onEdit: (t: Task) => void;
   bottomInset: number;
 }) {
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const { t } = useI18n();
+  // Notion 风日历点配色：习惯绿 / 待办红 / 周期蓝（暗色自动提亮，保证可读）
+  const dot = {
+    habit: isDark ? '#57C99A' : '#2E9E6B',
+    todo: isDark ? '#F0786F' : '#D64545',
+    recurring: isDark ? '#7AB4EE' : '#4A90D9',
+  };
 
   const [ym, setYm] = useState<string>(today.slice(0, 7)); // 'YYYY-MM'
   const [sel, setSel] = useState<string>(today); // 'YYYY-MM-DD'
+  const [view, setView] = useState<'month' | 'timeline'>('month'); // 月视图 / 时间线（议程）切换
 
   // 按日期把任务分组（含已完成），日期单元格有任务则显示圆点
   const byDate = useMemo(() => {
@@ -1149,6 +1171,9 @@ function CalendarSub({
     }
     return m;
   }, [tasks]);
+
+  // #494(c1)：把每日习惯打卡聚合为 date -> 打卡数，用于月格习惯圆点
+  const habitMap = useMemo(() => habitCalendarMap(habits), [habits]);
 
   const [yy, mm] = ym.split('-').map(Number);
   const firstDow = new Date(yy, mm - 1, 1).getDay(); // 0 = 周日，与 week0..6 对齐
@@ -1168,7 +1193,7 @@ function CalendarSub({
     t('plan.week6'),
   ];
 
-  const monthLabel = `${yy}·${`${mm}`.padStart(2, '0')}`;
+  const monthLabel = `${yy} • ${`${mm}`.padStart(2, '0')}`;
   const q = searchText.trim();
   const filtering = q.length > 0 || activeTag !== null;
   const selList = sortTasks((byDate[sel] || []).filter((x) => matchesQuery(x, q) && matchesTag(x, activeTag)), sortKey);
@@ -1179,119 +1204,382 @@ function CalendarSub({
     setYm(`${nd.getFullYear()}-${`${nd.getMonth() + 1}`.padStart(2, '0')}`);
   };
 
+  // 时间线（议程）视图：把未完成 / 未过期的任务按 今天 / 明天 / 本周 / 更晚 分组。
+  // 复用 plan.timelineGroups 纯函数；搜索 / 标签筛选与月视图口径一致。
+  // #494(c3)：今天分组内追加当日习惯打卡条目，点按即可原地打卡。
+  const timelineView = (() => {
+    const q = searchText.trim();
+    const filtered = tasks.filter((x) => matchesQuery(x, q) && matchesTag(x, activeTag));
+    const groups = timelineGroups(filtered, today);
+    const groupTitle = (key: string) =>
+      key === 'today' ? t('plan.tlToday') : key === 'tomorrow' ? t('plan.tlTomorrow') : key === 'thisWeek' ? t('plan.tlThisWeek') : t('plan.tlLater');
+    const groupIcon = (key: string) => (key === 'today' ? ICONS.today : ICONS.calendar);
+    if (groups.length === 0) {
+      return (
+        <View style={{ marginTop: space.xl }}>
+          <EmptyState
+            icon={ICONS.search}
+            title={filtering ? t('plan.noResults') : t('plan.timelineEmpty')}
+            hint={filtering ? t('plan.noResultsHint') : undefined}
+          />
+        </View>
+      );
+    }
+    return (
+      <View style={{ marginTop: space.sm }}>
+        {groups.map((g) => (
+          <View key={g.key} style={{ marginTop: space.lg }}>
+            <SectionLabel text={groupTitle(g.key)} icon={groupIcon(g.key)} />
+            {g.items.map((task) => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                onToggle={onToggle}
+                onDelete={onDelete}
+                confirmDelete={confirmDelete}
+                onToggleSubtask={onToggleSubtask}
+                onAddSubtask={onAddSubtask}
+                onDeleteSubtask={onDeleteSubtask}
+                onEdit={() => onEdit(task)}
+              />
+            ))}
+            {g.key === 'today' &&
+              habits.map((h) => (
+                <HabitRow
+                  key={h.id}
+                  habit={h}
+                  today={today}
+                  onToggle={(habit) => onToggleHabit(habit, today)}
+                  onDelete={onDeleteHabit}
+                  confirmDelete={confirmDelete}
+                />
+              ))}
+          </View>
+        ))}
+      </View>
+    );
+  })();
+
   return (
     <ScrollView
       style={{ flex: 1 }}
       contentContainerStyle={{ paddingHorizontal: pageMargin, paddingTop: space.sm, paddingBottom: bottomInset }}
       keyboardShouldPersistTaps="handled"
     >
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.sm }}>
-        <IconButton name={ICONS.chevronLeft} color={theme.onSurfaceVariant} onPress={() => shift(-1)} accessibilityLabel={t('plan.calPrev')} />
-        <M3Text role="titleMedium">{monthLabel}</M3Text>
-        <IconButton name={ICONS.chevronRight} color={theme.onSurfaceVariant} onPress={() => shift(1)} accessibilityLabel={t('plan.calNext')} />
-      </View>
-      <View style={{ flexDirection: 'row', marginBottom: 4 }}>
-        {weekLabels.map((w, i) => (
-          <View key={i} style={{ flex: 1, alignItems: 'center' }}>
-            <M3Text role="labelSmall" color={theme.onSurfaceVariant}>{w}</M3Text>
+      {/* 视图切换：月视图 / 时间线（议程） */}
+      {view === 'month' ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.sm }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <IconButton name={ICONS.chevronLeft} color={theme.onSurfaceVariant} onPress={() => shift(-1)} accessibilityLabel={t('plan.calPrev')} />
+            <M3Text role="titleMedium" style={{ fontVariant: ['tabular-nums'] }}>{monthLabel}</M3Text>
+            <IconButton name={ICONS.chevronRight} color={theme.onSurfaceVariant} onPress={() => shift(1)} accessibilityLabel={t('plan.calNext')} />
           </View>
-        ))}
-      </View>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-        {cells.map((d, i) => {
-          if (d == null) return <View key={`b${i}`} style={{ width: '14.2857%', aspectRatio: 1 }} />;
-          const ds = `${ym}-${`${d}`.padStart(2, '0')}`;
-          const has = !!byDate[ds] && byDate[ds].length > 0;
-          const isToday = ds === today;
-          const isSel = ds === sel;
-          return (
-            <TouchableOpacity
-              key={ds}
-              onPress={() => setSel(ds)}
-              accessibilityRole="button"
-              accessibilityLabel={`${ds}${has ? ' · ' + t('plan.calTasksOnDay') : ''}`}
-              style={{ width: '14.2857%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center' }}
-            >
-              <View
-                style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: 19,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: isSel ? theme.primaryContainer : 'transparent',
-                }}
-              >
-                <M3Text
-                  role="bodyMedium"
-                  color={isSel ? theme.onPrimaryContainer : isToday ? theme.primary : theme.onSurface}
-                >
-                  {d}
-                </M3Text>
-              </View>
-              {has && (
-                <View
-                  style={{
-                    position: 'absolute',
-                    bottom: 4,
-                    width: 5,
-                    height: 5,
-                    borderRadius: 2.5,
-                    backgroundColor: isSel ? theme.onPrimaryContainer : theme.primary,
-                  }}
-                />
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* Notion 风格：日历网格与当日明细之间加一条极细分隔线，统一层级节奏 */}
-      <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.divider, marginTop: space.md, marginBottom: 2 }} />
-
-      <View style={{ marginTop: space.lg }}>
-        <SectionLabel text={t('plan.calTasksOnDay')} icon={ICONS.calendar} />
-        {selHasTasks ? (
-          selList.map((task) => (
-            <TaskRow
-              key={task.id}
-              task={task}
-              onToggle={onToggle}
-              onDelete={onDelete}
-              confirmDelete={confirmDelete}
-              onToggleSubtask={onToggleSubtask}
-              onAddSubtask={onAddSubtask}
-              onDeleteSubtask={onDeleteSubtask}
-              onEdit={() => onEdit(task)}
-            />
-          ))
-        ) : (
-          <View style={{ marginTop: space.md }}>
-            {filtering ? (
-              <EmptyState icon={ICONS.search} title={t('plan.noResults')} hint={t('plan.noResultsHint')} />
-            ) : (
-              <EmptyState icon={ICONS.tasks} title={t('plan.calEmpty')} />
-            )}
-          </View>
-        )}
-      </View>
-
-      {/* 合并「今日」模块：当选中日期为今天时，详情区追加今日习惯列表 */}
-      {sel === today && habits.length > 0 && (
-        <View style={{ marginTop: space.lg }}>
-          <SectionLabel text={t('plan.todayHabits')} icon={ICONS.habit} />
-          {habits.map((h) => (
-            <HabitRow
-              key={h.id}
-              habit={h}
-              today={today}
-              onToggle={onToggleHabit}
-              onDelete={onDeleteHabit}
-              confirmDelete={confirmDelete}
-            />
-          ))}
+          <IconButton name={ICONS.tasks} color={theme.onSurfaceVariant} onPress={() => setView('timeline')} accessibilityLabel={t('plan.viewTimeline')} />
+        </View>
+      ) : (
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.sm }}>
+          <M3Text role="titleMedium">{t('plan.timelineTitle')}</M3Text>
+          <IconButton name={ICONS.calendar} color={theme.onSurfaceVariant} onPress={() => setView('month')} accessibilityLabel={t('plan.viewMonth')} />
         </View>
       )}
+
+      {view === 'month' && (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 2, paddingHorizontal: 2 }}>
+          <LegendDot color={dot.habit} label={t('plan.segHabit')} />
+          <LegendDot color={dot.todo} label={t('plan.segTodo')} />
+          <LegendDot color={dot.recurring} label={t('plan.segPeriod')} />
+        </View>
+      )}
+
+      {view === 'month' ? (
+        <>
+          <View style={{ flexDirection: 'row', marginBottom: 4 }}>
+            {weekLabels.map((w, i) => (
+              <View key={i} style={{ flex: 1, alignItems: 'center' }}>
+                <M3Text role="labelSmall" color={theme.onSurfaceVariant}>{w}</M3Text>
+              </View>
+            ))}
+          </View>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+            {cells.map((d, i) => {
+              if (d == null) return <View key={`b${i}`} style={{ width: '14.2857%', aspectRatio: 1 }} />;
+              const ds = `${ym}-${`${d}`.padStart(2, '0')}`;
+              const dayTasks = byDate[ds] || [];
+              const hasHabit = (habitMap[ds] || 0) > 0; // #494(c1)：当日习惯打卡数
+              const hasTodo = dayTasks.some((x) => !(x.repeat && x.repeat !== 'none'));
+              const hasRecurring = dayTasks.some((x) => x.repeat && x.repeat !== 'none');
+              const dayDots = [hasHabit && dot.habit, hasTodo && dot.todo, hasRecurring && dot.recurring].filter(
+                Boolean,
+              ) as string[];
+              const isToday = ds === today;
+              const isSel = ds === sel;
+              return (
+                <TouchableOpacity
+                  key={ds}
+                  onPress={() => setSel(ds)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${ds}${dayDots.length > 0 ? ' · ' + t('plan.calTasksOnDay') : ''}`}
+                  style={{ width: '14.2857%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <View
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 19,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: isSel ? theme.primaryContainer : 'transparent',
+                    }}
+                  >
+                    <M3Text
+                      role="bodyMedium"
+                      color={isSel ? theme.onPrimaryContainer : isToday ? theme.primary : theme.onSurface}
+                    >
+                      {d}
+                    </M3Text>
+                  </View>
+                  {dayDots.length > 0 && (
+                    <View
+                      style={{
+                        position: 'absolute',
+                        bottom: 4,
+                        flexDirection: 'row',
+                        gap: 3,
+                        alignItems: 'center',
+                      }}
+                    >
+                      {dayDots.map((c, i) => (
+                        <View key={i} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: c }} />
+                      ))}
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* Notion 风格：日历网格与当日明细之间加一条极细分隔线，统一层级节奏 */}
+          <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.divider, marginTop: space.md, marginBottom: 2 }} />
+
+          <View style={{ marginTop: space.lg }}>
+            <SectionLabel text={t('plan.calTasksOnDay')} icon={ICONS.calendar} />
+            {selHasTasks ? (
+              selList.map((task) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  onToggle={onToggle}
+                  onDelete={onDelete}
+                  confirmDelete={confirmDelete}
+                  onToggleSubtask={onToggleSubtask}
+                  onAddSubtask={onAddSubtask}
+                  onDeleteSubtask={onDeleteSubtask}
+                  onEdit={() => onEdit(task)}
+                />
+              ))
+            ) : (
+              <View style={{ marginTop: space.md }}>
+                {filtering ? (
+                  <EmptyState icon={ICONS.search} title={t('plan.noResults')} hint={t('plan.noResultsHint')} />
+                ) : (
+                  <EmptyState icon={ICONS.tasks} title={t('plan.calEmpty')} />
+                )}
+              </View>
+            )}
+          </View>
+
+          {/* #494(c2)：选中任意日期都展示该日习惯并就地打卡（不再限于今天） */}
+          {habits.length > 0 && (
+            <View style={{ marginTop: space.lg }}>
+              <SectionLabel text={t('plan.dayHabits')} icon={ICONS.habit} />
+              {habits.map((h) => (
+                <HabitRow
+                  key={h.id}
+                  habit={h}
+                  today={sel}
+                  onToggle={(habit) => onToggleHabit(habit, sel)}
+                  onDelete={onDeleteHabit}
+                  confirmDelete={confirmDelete}
+                />
+              ))}
+            </View>
+          )}
+        </>
+      ) : (
+        timelineView
+      )}
+    </ScrollView>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 周期计划管理：列出所有「重复」任务，按频率分组，显示下一次到期日，     */
+/* 支持「跳到下期 / 改周期 / 停止重复」三种操作。纯视图 + store 变更，     */
+/* 不改变 SCHEMA。                                                      */
+/* ------------------------------------------------------------------ */
+
+function PeriodView({
+  tasks,
+  today,
+  showUndo,
+  bottomInset,
+}: {
+  tasks: Task[];
+  today: string;
+  showUndo: (msg: string, undo: () => Promise<void>) => void;
+  bottomInset: number;
+}) {
+  const { theme } = useTheme();
+  const { t } = useI18n();
+  const [editingId, setEditingId] = useState<string | null>(null); // 展开「改周期」内联选择器
+
+  const recurring = listRecurring(tasks);
+  const groups: { freq: Exclude<RepeatFrequency, 'none'>; label: string; items: Task[] }[] = [
+    { freq: 'daily', label: t('plan.repeatDaily'), items: [] },
+    { freq: 'weekly', label: t('plan.repeatWeekly'), items: [] },
+    { freq: 'monthly', label: t('plan.repeatMonthly'), items: [] },
+    { freq: 'yearly', label: t('plan.repeatYearly'), items: [] },
+  ];
+  for (const tk of recurring) {
+    const g = groups.find((x) => x.freq === tk.repeat);
+    if (g) g.items.push(tk);
+  }
+
+  const mutateTask = async (id: string, patch: (t: Task) => Task, msg: string, undoMsg: string) => {
+    const prev = await store.getTasks();
+    const target = prev.find((x) => x.id === id);
+    if (!target) return;
+    const next = prev.map((x) => (x.id === id ? patch(x) : x));
+    await store.setTasks(next);
+    showUndo(msg, async () => {
+      await store.setTasks(prev);
+    });
+    void undoMsg;
+  };
+
+  // 跳到下期：把该重复任务自身日期推进一个周期（不标记完成，也不新建任务）
+  const skipToNext = (tk: Task) => {
+    if (!tk.repeat || tk.repeat === 'none') return;
+    const newDate = planAddPeriod(tk.date, tk.repeat);
+    mutateTask(tk.id, (x) => ({ ...x, date: newDate }), t('plan.skippedToNext', { title: tk.title }), '');
+  };
+  // 改周期：原地切换重复频率
+  const changeFreq = (tk: Task, freq: RepeatFrequency) => {
+    const label = freq === 'daily' ? t('plan.repeatDaily') : freq === 'weekly' ? t('plan.repeatWeekly') : freq === 'monthly' ? t('plan.repeatMonthly') : t('plan.repeatYearly');
+    mutateTask(tk.id, (x) => ({ ...x, repeat: freq }), t('plan.changedFreq', { title: tk.title, freq: label }), '');
+    setEditingId(null);
+  };
+  // 停止重复：repeat 置空，退化为一次性任务
+  const stopRepeat = (tk: Task) => {
+    mutateTask(tk.id, (x) => ({ ...x, repeat: undefined }), t('plan.stoppedRepeat', { title: tk.title }), '');
+  };
+
+  if (recurring.length === 0) {
+    return (
+      <View style={{ flex: 1, paddingHorizontal: pageMargin, paddingTop: space.xl }}>
+        <EmptyState icon={ICONS.recurring} title={t('plan.periodEmpty')} hint={t('plan.periodEmptyHint')} />
+      </View>
+    );
+  }
+
+  const FREQ_OPTIONS: RepeatFrequency[] = ['daily', 'weekly', 'monthly', 'yearly'];
+
+  return (
+    <ScrollView
+      style={{ flex: 1 }}
+      contentContainerStyle={{ paddingHorizontal: pageMargin, paddingTop: space.sm, paddingBottom: bottomInset }}
+      keyboardShouldPersistTaps="handled"
+    >
+      {groups.map((g) => {
+        if (g.items.length === 0) return null;
+        return (
+          <View key={g.freq} style={{ marginTop: space.lg }}>
+            <SectionLabel text={g.label} icon={ICONS.recurring} />
+            {g.items.map((tk) => {
+              const due = nextDue(tk, today);
+              const dueStr = due
+                ? t('date.monthDay', { m: Number(due.date.slice(5, 7)), d: Number(due.date.slice(8, 10)) })
+                : '';
+              const dueLabel = due
+                ? due.overdue
+                  ? t('plan.overdueDays', { n: -due.daysLeft })
+                  : due.daysLeft === 0
+                  ? t('plan.dueToday')
+                  : t('plan.dueInDays', { n: due.daysLeft })
+                : '';
+              const isEditing = editingId === tk.id;
+              return (
+                <View key={tk.id} style={{ marginBottom: space.xs }}>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: space.md,
+                      minHeight: 56,
+                      paddingVertical: space.sm,
+                    }}
+                  >
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <M3Text role="bodyLarge" numberOfLines={1}>{tk.title}</M3Text>
+                      <M3Text role="labelSmall" color={theme.onSurfaceVariant} numberOfLines={1}>
+                        {`${tk.time || t('plan.noTime')} · ${tk.category} · ${dueStr}`}
+                      </M3Text>
+                      <M3Text
+                        role="labelSmall"
+                        color={due?.overdue ? theme.error : theme.onSurfaceVariant}
+                        numberOfLines={1}
+                      >
+                        {dueLabel}
+                      </M3Text>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 4 }}>
+                      <TouchableOpacity
+                        onPress={() => skipToNext(tk)}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('plan.skipNextA11y', { name: tk.title })}
+                        style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: radius.sm, backgroundColor: theme.surfaceContainer, minHeight: touchMin, justifyContent: 'center' }}
+                      >
+                        <M3Text role="labelMedium" color={theme.primary}>{t('plan.skipNext')}</M3Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => setEditingId(isEditing ? null : tk.id)}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('plan.changeFreqA11y', { name: tk.title })}
+                        style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: radius.sm, backgroundColor: theme.surfaceContainer, minHeight: touchMin, justifyContent: 'center' }}
+                      >
+                        <M3Text role="labelMedium" color={theme.onSurfaceVariant}>{t('plan.changeFreq')}</M3Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => stopRepeat(tk)}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('plan.stopRepeatA11y', { name: tk.title })}
+                        style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: radius.sm, backgroundColor: theme.errorContainer, minHeight: touchMin, justifyContent: 'center' }}
+                      >
+                        <M3Text role="labelMedium" color={theme.onErrorContainer}>{t('plan.stopRepeat')}</M3Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                  {isEditing && (
+                    <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 4, marginLeft: 48 + space.md }}>
+                      {FREQ_OPTIONS.map((f) => (
+                        <TouchableOpacity
+                          key={f}
+                          onPress={() => changeFreq(tk, f)}
+                          style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.md, backgroundColor: tk.repeat === f ? theme.primary : theme.surfaceContainer }}
+                        >
+                          <M3Text role="labelLarge" color={tk.repeat === f ? theme.onPrimary : theme.onSurfaceVariant}>
+                            {f === 'daily' ? t('plan.repeatDaily') : f === 'weekly' ? t('plan.repeatWeekly') : f === 'monthly' ? t('plan.repeatMonthly') : t('plan.repeatYearly')}
+                          </M3Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        );
+      })}
     </ScrollView>
   );
 }
@@ -1304,6 +1592,17 @@ function SectionLabel({ text, icon }: { text: string; icon?: string }) {
       <M3Text role="labelLarge" color={theme.onSurfaceVariant}>
         {text}
       </M3Text>
+    </View>
+  );
+}
+
+// Notion 风极简图例：小圆点 + 文字，用于日历点配色说明
+function LegendDot({ color, label }: { color: string; label: string }) {
+  const { theme } = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+      <View style={{ width: 7, height: 7, borderRadius: 3.5, backgroundColor: color }} />
+      <M3Text role="labelSmall" color={theme.onSurfaceVariant}>{label}</M3Text>
     </View>
   );
 }
@@ -1472,7 +1771,7 @@ function TaskRow({
           disabled={!onEdit}
         >
           <M3Text
-            role="bodyLarge"
+            role="bodyMedium"
             numberOfLines={1}
             style={task.completed ? { textDecorationLine: 'line-through', color: theme.onSurfaceVariant } : undefined}
           >
@@ -1493,7 +1792,7 @@ function TaskRow({
         </TouchableOpacity>
         {hasSubs ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-            <M3Text role="labelSmall" color={theme.onSurfaceVariant}>
+            <M3Text role="labelMedium" color={theme.onSurfaceVariant}>
               {t('plan.subtaskProgress', { done, total })}
             </M3Text>
             <IconButton
@@ -1506,7 +1805,7 @@ function TaskRow({
         ) : null}
         {task.repeat && task.repeat !== 'none' ? (
           <View style={{ paddingVertical: 4, paddingHorizontal: 8, borderRadius: radius.sm, backgroundColor: theme.surfaceContainer }}>
-            <M3Text role="labelSmall" color={theme.primary}>
+            <M3Text role="labelMedium" color={theme.primary}>
               {REPEAT_LABELS[task.repeat] || task.repeat}
             </M3Text>
           </View>
@@ -1578,7 +1877,7 @@ function HabitRow({
     >
       <CheckCircle checked={done} onToggle={() => onToggle(habit)} a11y={done ? t('home.cancelCheckIn') : t('home.checkIn')} theme={theme} />
       <View style={{ flex: 1, minWidth: 0 }}>
-        <M3Text role="bodyLarge" numberOfLines={1}>
+        <M3Text role="bodyMedium" numberOfLines={1}>
           {habit.name}
         </M3Text>
         <M3Text role="labelSmall" color={theme.onSurfaceVariant} numberOfLines={1}>

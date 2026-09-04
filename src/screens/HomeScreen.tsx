@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, StyleSheet, View, useWindowDimensions, ListRenderItem } from 'react-native';
+import { ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useTheme } from '../theme-context';
 import { useI18n } from '../i18n';
 import { useData } from '../useData';
@@ -400,14 +400,15 @@ export default function HomeScreen({ navigation }: any) {
   /* 4. 最近流水（FlatList 的 data 就是它，避免嵌套虚拟列表）           */
   /* ---------------------------------------------------------------- */
 
-  const renderTxn: ListRenderItem<Txn> = ({ item, index }) => {
+  // 最近流水整块已收入 Card（与 今日计划 / 即将到期 节奏一致），故行本身不再带背景色 /
+  // 圆角，仅用细分隔线划分；首末行圆角由外层 Card 提供。
+  const renderTxn = (item: Txn, index: number) => {
     const tone = txnTone(item);
     const fg = tone === 'out' ? theme.expense : tone === 'in' ? theme.income : theme.onSurfaceVariant;
     const bg =
       tone === 'out' ? theme.expenseContainer : tone === 'in' ? theme.incomeContainer : theme.surfaceContainerHigh;
     const sign = tone === 'out' ? '-' : tone === 'in' ? '+' : '';
     const cur = txnOrigCurrency(item);
-    const first = index === 0;
     const last = index === recent.length - 1;
     const sub = [relDate(item.date), item.time, item.note].filter(Boolean).join(' · ');
 
@@ -423,13 +424,9 @@ export default function HomeScreen({ navigation }: any) {
             alignItems: 'center',
             gap: space.md,
             minHeight: 56,
-            paddingHorizontal: space.lg,
+            paddingHorizontal: 0,
             paddingVertical: space.md,
-            backgroundColor: theme.surface,
-            borderTopLeftRadius: first ? radius.card : 0,
-            borderTopRightRadius: first ? radius.card : 0,
-            borderBottomLeftRadius: last ? radius.card : 0,
-            borderBottomRightRadius: last ? radius.card : 0,
+            backgroundColor: 'transparent',
           }}
         >
           <View
@@ -460,7 +457,7 @@ export default function HomeScreen({ navigation }: any) {
           </M3Text>
         </AnimatedPressable>
         {!last ? (
-          <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.divider, marginLeft: 64 }} />
+          <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: theme.divider }} />
         ) : null}
       </AnimatedListItem>
     );
@@ -657,26 +654,22 @@ export default function HomeScreen({ navigation }: any) {
   /* 组装                                                              */
   /* ---------------------------------------------------------------- */
 
-  const header = (
-    <FadeInContent>
-      {renderHero()}
-      {renderQuick()}
-      <View style={{ paddingHorizontal: space.xs }}>
-        <SectionHeader
-          icon={ICONS.finance}
-          title={t('home.recentTxns')}
-          actionLabel={t('common.viewAll')}
-          onAction={() => goFinance('txns')}
-        />
-      </View>
-    </FadeInContent>
-  );
-
-  const footer = (
-    <View style={{ marginTop: recent.length > 0 ? cardGap : 0 }}>
-      {renderTodayPlan()}
-      {renderUpcoming()}
-    </View>
+  // 最近流水整块收入 Card：与 今日计划（level=1）/ 即将到期 同为卡片，三栏垂直节奏统一，
+  // 标题缩进、卡片间距（cardGap）完全一致，不再出现「浮动列表 vs 卡片」的间距错位。
+  const recentBlock = (
+    <Card style={{ marginBottom: cardGap }}>
+      <SectionHeader
+        icon={ICONS.finance}
+        title={t('home.recentTxns')}
+        actionLabel={t('common.viewAll')}
+        onAction={() => goFinance('txns')}
+      />
+      {recent.length === 0 ? (
+        <EmptyState icon={ICONS.finance} title={t('home.noRecentTxns')} hint={t('home.noRecentTxnsHint')} />
+      ) : (
+        recent.map((item, index) => renderTxn(item, index))
+      )}
+    </Card>
   );
 
   return (
@@ -687,21 +680,19 @@ export default function HomeScreen({ navigation }: any) {
         pendingCount={pendingCount}
         onNotification={() => nav.openPending()}
       />
-      <FlatList
-        data={recent}
-        renderItem={renderTxn}
-        keyExtractor={(x) => x.id}
-        ListHeaderComponent={header}
-        ListFooterComponent={footer}
-        ListEmptyComponent={
-          <Card>
-            <EmptyState icon={ICONS.finance} title={t('home.noRecentTxns')} hint={t('home.noRecentTxnsHint')} />
-          </Card>
-        }
+      <ScrollView
         contentContainerStyle={{ padding: pageMargin, paddingBottom: bottomInset }}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-      />
+      >
+        <FadeInContent>
+          {renderHero()}
+          {renderQuick()}
+        </FadeInContent>
+        {recentBlock}
+        {renderTodayPlan()}
+        {renderUpcoming()}
+      </ScrollView>
       {snack && <Snackbar message={snack.msg} actionLabel={t('common.undo')} onAction={snack.onUndo} />}
     </View>
   );
