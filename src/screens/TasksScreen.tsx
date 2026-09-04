@@ -1140,11 +1140,11 @@ function CalendarSub({
 }) {
   const { theme, isDark } = useTheme();
   const { t } = useI18n();
-  // Notion 风日历点配色：习惯绿 / 待办红 / 周期蓝（暗色自动提亮，保证可读）
+  // 日历点配色：待办红（一次性）/ 周期·习惯蓝（会重复出现的事统一为蓝点）。
+  // 不再把「周期」当作独立模块——周期待办（tasks.repeat≠none）与习惯(habits)合并为一类蓝点。
   const dot = {
-    habit: isDark ? '#57C99A' : '#2E9E6B',
-    todo: isDark ? '#F0786F' : '#D64545',
-    recurring: isDark ? '#7AB4EE' : '#4A90D9',
+    todo: isDark ? '#F0786F' : '#D64545', // 待办（一次性，无重复）→ 红
+    recurring: isDark ? '#7AB4EE' : '#4A90D9', // 周期待办 + 习惯 → 蓝
   };
 
   const [ym, setYm] = useState<string>(today.slice(0, 7)); // 'YYYY-MM'
@@ -1300,9 +1300,8 @@ function CalendarSub({
 
       {view === 'month' && (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 2, paddingHorizontal: 2 }}>
-          <LegendDot color={dot.habit} label={t('plan.segHabit')} />
           <LegendDot color={dot.todo} label={t('plan.segTodo')} />
-          <LegendDot color={dot.recurring} label={t('plan.segPeriod')} />
+          <LegendDot color={dot.recurring} label={t('plan.segRecurringHabit')} />
         </View>
       )}
 
@@ -1321,9 +1320,10 @@ function CalendarSub({
               const ds = `${ym}-${`${d}`.padStart(2, '0')}`;
               const dayTasks = byDate[ds] || [];
               const hasHabit = (habitMap[ds] || 0) > 0; // #494(c1)：当日习惯打卡数
-              const hasTodo = dayTasks.some((x) => !(x.repeat && x.repeat !== 'none'));
-              const hasRecurring = dayTasks.some((x) => x.repeat && x.repeat !== 'none');
-              const dayDots = [hasHabit && dot.habit, hasTodo && dot.todo, hasRecurring && dot.recurring].filter(
+              const hasOneOff = dayTasks.some((x) => !(x.repeat && x.repeat !== 'none')); // 一次性待办 → 红
+              const hasRecurring = dayTasks.some((x) => x.repeat && x.repeat !== 'none'); // 周期待办
+              // 蓝点 = 周期待办 或 习惯（统一蓝）；红点 = 一次性待办。两者兼有时各出对应色，蓝点不重复。
+              const dayDots = [hasOneOff && dot.todo, (hasRecurring || hasHabit) && dot.recurring].filter(
                 Boolean,
               ) as string[];
               const isToday = ds === today;

@@ -300,7 +300,7 @@ export const zh = {
     habitReminderHint: '设置后每天此时会推送打卡提醒',
     habitReminderBody: '到时间打卡啦',
     // §七 Plan 深化（V3.1.0）：时间线 / 周期计划 / 习惯联动
-    segPeriod: '周期',
+    segRecurringHabit: '周期 · 习惯',
     viewMonth: '月视图',
     viewTimeline: '时间线',
     timelineTitle: '时间线',

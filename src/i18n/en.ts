@@ -300,7 +300,7 @@ export const en = {
     habitReminderHint: 'You will get a daily check-in nudge at this time',
     habitReminderBody: 'Time to check in',
     // §七 Plan deepening (V3.1.0): timeline / recurring / habit linkage
-    segPeriod: 'Recurring',
+    segRecurringHabit: 'Recurring · Habits',
     viewMonth: 'Month',
     viewTimeline: 'Timeline',
     timelineTitle: 'Timeline',
