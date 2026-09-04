@@ -34,7 +34,7 @@ import { useBottomContentInset, TAB_BAR_HEIGHT, TAB_BAR_FLOAT_GAP } from '../com
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppBottomSheet } from '../components/anim';
 import type { Task, SubTask, Habit, ShopItem, Priority, HabitType, ShopPriority, Currency, RepeatFrequency } from '../types';
-import { timelineGroups, listRecurring, nextDue, addPeriod as planAddPeriod, habitCalendarMap } from '../plan';
+import { timelineGroups, habitCalendarMap } from '../plan';
 import {
   shouldShowAddFab,
   classifySchedule,
@@ -160,7 +160,7 @@ function visibleTodoTasks(tasks: Task[], searchText: string, activeTag: string |
   return tasks.filter((x) => !x.completed && matchesQuery(x, q) && matchesTag(x, activeTag));
 }
 
-type Seg = 'calendar' | 'todo' | 'shopping' | 'habit' | 'period';
+type Seg = 'calendar' | 'todo' | 'shopping' | 'habit';
 type UndoState = { msg: string; undo: () => Promise<void> } | null;
 
 // §七 计划页四档：日历（默认落地，合并「今日」视图）/ 待办 / 待买 / 习惯。
@@ -181,7 +181,7 @@ export default function TasksScreen() {
   const d = useData();
   const route = useRoute<any>();
   const resolveSeg = (raw: unknown): Seg => {
-    if (raw === 'calendar' || raw === 'todo' || raw === 'shopping' || raw === 'habit' || raw === 'period') return raw as Seg;
+    if (raw === 'calendar' || raw === 'todo' || raw === 'shopping' || raw === 'habit') return raw as Seg;
     return 'calendar'; // 默认落在日历（含「今日」视图）
   };
   const initialSeg: Seg = resolveSeg(route?.params?.seg);
@@ -482,7 +482,6 @@ export default function TasksScreen() {
             { key: 'calendar', label: t('plan.segCalendar') },
             { key: 'todo', label: t('plan.segTodo') },
             { key: 'shopping', label: t('plan.segShopping') },
-            { key: 'period', label: t('plan.segPeriod') },
             { key: 'habit', label: t('plan.segHabit') },
           ] as const).map((s) => {
             const isA = s.key === seg;
@@ -611,15 +610,6 @@ export default function TasksScreen() {
           onToggle={toggleHabit}
           onDelete={deleteHabit}
           confirmDelete={confirmDelete}
-          bottomInset={bottomInset}
-        />
-      )}
-
-      {seg === 'period' && (
-        <PeriodView
-          tasks={d.tasks}
-          today={today}
-          showUndo={showUndo}
           bottomInset={bottomInset}
         />
       )}
@@ -1161,16 +1151,41 @@ function CalendarSub({
   const [sel, setSel] = useState<string>(today); // 'YYYY-MM-DD'
   const [view, setView] = useState<'month' | 'timeline'>('month'); // 月视图 / 时间线（议程）切换
 
-  // 按日期把任务分组（含已完成），日期单元格有任务则显示圆点
+  // 按日期把任务分组（含已完成），日期单元格有任务则显示圆点。
+  // 周期任务（未完成的）额外按其重复周期，展开到当前可见月份内的每一个重复日，
+  // 使日历网格与当日明细都能呈现完整的重复规律（否则只在下一次到期日那格出现一个蓝点）。
   const byDate = useMemo(() => {
+    const [my, mmm] = ym.split('-').map(Number);
+    const monthStart = `${ym}-01`;
+    const monthEnd = `${ym}-${`${new Date(my, mmm, 0).getDate()}`.padStart(2, '0')}`;
     const m: Record<string, Task[]> = {};
+    const push = (date: string, t: Task) => {
+      if (!m[date]) m[date] = [];
+      // 同任务同日只放一次，避免与已完成历史实例或自身起点重复
+      if (!m[date].some((e) => e.id === t.id)) m[date].push(t);
+    };
     for (const x of tasks) {
       if (!x.date) continue;
-      if (!m[x.date]) m[x.date] = [];
-      m[x.date].push(x);
+      push(x.date, x);
+    }
+    for (const x of tasks) {
+      if (!x.repeat || x.repeat === 'none' || x.completed) continue;
+      let cur = x.date;
+      if (cur > monthEnd) continue; // 种子已在当月之后
+      let guard = 0;
+      // 若种子早于当月，快进到第一个 >= monthStart 的重复日（不从远古逐日步进）
+      while (cur < monthStart && guard < 10000) {
+        cur = addPeriod(cur, x.repeat);
+        guard++;
+      }
+      while (cur <= monthEnd && guard < 10000) {
+        push(cur, x);
+        cur = addPeriod(cur, x.repeat);
+        guard++;
+      }
     }
     return m;
-  }, [tasks]);
+  }, [tasks, ym]);
 
   // #494(c1)：把每日习惯打卡聚合为 date -> 打卡数，用于月格习惯圆点
   const habitMap = useMemo(() => habitCalendarMap(habits), [habits]);
@@ -1413,177 +1428,8 @@ function CalendarSub({
 }
 
 /* ------------------------------------------------------------------ */
-/* 周期计划管理：列出所有「重复」任务，按频率分组，显示下一次到期日，     */
-/* 支持「跳到下期 / 改周期 / 停止重复」三种操作。纯视图 + store 变更，     */
-/* 不改变 SCHEMA。                                                      */
-/* ------------------------------------------------------------------ */
 
-function PeriodView({
-  tasks,
-  today,
-  showUndo,
-  bottomInset,
-}: {
-  tasks: Task[];
-  today: string;
-  showUndo: (msg: string, undo: () => Promise<void>) => void;
-  bottomInset: number;
-}) {
-  const { theme } = useTheme();
-  const { t } = useI18n();
-  const [editingId, setEditingId] = useState<string | null>(null); // 展开「改周期」内联选择器
-
-  const recurring = listRecurring(tasks);
-  const groups: { freq: Exclude<RepeatFrequency, 'none'>; label: string; items: Task[] }[] = [
-    { freq: 'daily', label: t('plan.repeatDaily'), items: [] },
-    { freq: 'weekly', label: t('plan.repeatWeekly'), items: [] },
-    { freq: 'monthly', label: t('plan.repeatMonthly'), items: [] },
-    { freq: 'yearly', label: t('plan.repeatYearly'), items: [] },
-  ];
-  for (const tk of recurring) {
-    const g = groups.find((x) => x.freq === tk.repeat);
-    if (g) g.items.push(tk);
-  }
-
-  const mutateTask = async (id: string, patch: (t: Task) => Task, msg: string, undoMsg: string) => {
-    const prev = await store.getTasks();
-    const target = prev.find((x) => x.id === id);
-    if (!target) return;
-    const next = prev.map((x) => (x.id === id ? patch(x) : x));
-    await store.setTasks(next);
-    showUndo(msg, async () => {
-      await store.setTasks(prev);
-    });
-    void undoMsg;
-  };
-
-  // 跳到下期：把该重复任务自身日期推进一个周期（不标记完成，也不新建任务）
-  const skipToNext = (tk: Task) => {
-    if (!tk.repeat || tk.repeat === 'none') return;
-    const newDate = planAddPeriod(tk.date, tk.repeat);
-    mutateTask(tk.id, (x) => ({ ...x, date: newDate }), t('plan.skippedToNext', { title: tk.title }), '');
-  };
-  // 改周期：原地切换重复频率
-  const changeFreq = (tk: Task, freq: RepeatFrequency) => {
-    const label = freq === 'daily' ? t('plan.repeatDaily') : freq === 'weekly' ? t('plan.repeatWeekly') : freq === 'monthly' ? t('plan.repeatMonthly') : t('plan.repeatYearly');
-    mutateTask(tk.id, (x) => ({ ...x, repeat: freq }), t('plan.changedFreq', { title: tk.title, freq: label }), '');
-    setEditingId(null);
-  };
-  // 停止重复：repeat 置空，退化为一次性任务
-  const stopRepeat = (tk: Task) => {
-    mutateTask(tk.id, (x) => ({ ...x, repeat: undefined }), t('plan.stoppedRepeat', { title: tk.title }), '');
-  };
-
-  if (recurring.length === 0) {
-    return (
-      <View style={{ flex: 1, paddingHorizontal: pageMargin, paddingTop: space.xl }}>
-        <EmptyState icon={ICONS.recurring} title={t('plan.periodEmpty')} hint={t('plan.periodEmptyHint')} />
-      </View>
-    );
-  }
-
-  const FREQ_OPTIONS: RepeatFrequency[] = ['daily', 'weekly', 'monthly', 'yearly'];
-
-  return (
-    <ScrollView
-      style={{ flex: 1 }}
-      contentContainerStyle={{ paddingHorizontal: pageMargin, paddingTop: space.sm, paddingBottom: bottomInset }}
-      keyboardShouldPersistTaps="handled"
-    >
-      {groups.map((g) => {
-        if (g.items.length === 0) return null;
-        return (
-          <View key={g.freq} style={{ marginTop: space.lg }}>
-            <SectionLabel text={g.label} icon={ICONS.recurring} />
-            {g.items.map((tk) => {
-              const due = nextDue(tk, today);
-              const dueStr = due
-                ? t('date.monthDay', { m: Number(due.date.slice(5, 7)), d: Number(due.date.slice(8, 10)) })
-                : '';
-              const dueLabel = due
-                ? due.overdue
-                  ? t('plan.overdueDays', { n: -due.daysLeft })
-                  : due.daysLeft === 0
-                  ? t('plan.dueToday')
-                  : t('plan.dueInDays', { n: due.daysLeft })
-                : '';
-              const isEditing = editingId === tk.id;
-              return (
-                <View key={tk.id} style={{ marginBottom: space.xs }}>
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: space.md,
-                      minHeight: 56,
-                      paddingVertical: space.sm,
-                    }}
-                  >
-                    <View style={{ flex: 1, minWidth: 0 }}>
-                      <M3Text role="bodyLarge" numberOfLines={1}>{tk.title}</M3Text>
-                      <M3Text role="labelSmall" color={theme.onSurfaceVariant} numberOfLines={1}>
-                        {`${tk.time || t('plan.noTime')} · ${tk.category} · ${dueStr}`}
-                      </M3Text>
-                      <M3Text
-                        role="labelSmall"
-                        color={due?.overdue ? theme.error : theme.onSurfaceVariant}
-                        numberOfLines={1}
-                      >
-                        {dueLabel}
-                      </M3Text>
-                    </View>
-                    <View style={{ flexDirection: 'row', gap: 4 }}>
-                      <TouchableOpacity
-                        onPress={() => skipToNext(tk)}
-                        accessibilityRole="button"
-                        accessibilityLabel={t('plan.skipNextA11y', { name: tk.title })}
-                        style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: radius.sm, backgroundColor: theme.surfaceContainer, minHeight: touchMin, justifyContent: 'center' }}
-                      >
-                        <M3Text role="labelMedium" color={theme.primary}>{t('plan.skipNext')}</M3Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => setEditingId(isEditing ? null : tk.id)}
-                        accessibilityRole="button"
-                        accessibilityLabel={t('plan.changeFreqA11y', { name: tk.title })}
-                        style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: radius.sm, backgroundColor: theme.surfaceContainer, minHeight: touchMin, justifyContent: 'center' }}
-                      >
-                        <M3Text role="labelMedium" color={theme.onSurfaceVariant}>{t('plan.changeFreq')}</M3Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        onPress={() => stopRepeat(tk)}
-                        accessibilityRole="button"
-                        accessibilityLabel={t('plan.stopRepeatA11y', { name: tk.title })}
-                        style={{ paddingVertical: 6, paddingHorizontal: 10, borderRadius: radius.sm, backgroundColor: theme.errorContainer, minHeight: touchMin, justifyContent: 'center' }}
-                      >
-                        <M3Text role="labelMedium" color={theme.onErrorContainer}>{t('plan.stopRepeat')}</M3Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                  {isEditing && (
-                    <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 4, marginLeft: 48 + space.md }}>
-                      {FREQ_OPTIONS.map((f) => (
-                        <TouchableOpacity
-                          key={f}
-                          onPress={() => changeFreq(tk, f)}
-                          style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.md, backgroundColor: tk.repeat === f ? theme.primary : theme.surfaceContainer }}
-                        >
-                          <M3Text role="labelLarge" color={tk.repeat === f ? theme.onPrimary : theme.onSurfaceVariant}>
-                            {f === 'daily' ? t('plan.repeatDaily') : f === 'weekly' ? t('plan.repeatWeekly') : f === 'monthly' ? t('plan.repeatMonthly') : t('plan.repeatYearly')}
-                          </M3Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  )}
-                </View>
-              );
-            })}
-          </View>
-        );
-      })}
-    </ScrollView>
-  );
-}
-
+// 小标题（带可选图标），用于分段区块的标题
 function SectionLabel({ text, icon }: { text: string; icon?: string }) {
   const { theme } = useTheme();
   return (
@@ -2056,10 +1902,9 @@ function ScheduleForm({ today, onClose, task }: { today: string; onClose: () => 
                       onPress={() => { setReminderLead(opt); setShowLeadPicker(false); }}
                       accessibilityRole="button"
                       accessibilityState={{ selected }}
-                      style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 11, paddingHorizontal: 14 }}
+                      style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 11, paddingHorizontal: 14, backgroundColor: selected ? theme.primaryContainer : 'transparent', borderRadius: radius.sm }}
                     >
-                      <M3Text role="bodyLarge" color={selected ? theme.primary : theme.onSurface}>{leadLabel(opt)}</M3Text>
-                      {selected && <Icon name={ICONS.check} size={18} color={theme.primary} />}
+                      <M3Text role="bodyLarge" color={selected ? theme.onPrimaryContainer : theme.onSurface}>{leadLabel(opt)}</M3Text>
                     </TouchableOpacity>
                   );
                 })}
@@ -2087,7 +1932,7 @@ function ScheduleForm({ today, onClose, task }: { today: string; onClose: () => 
       <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
         {(['none', 'daily', 'weekly', 'monthly', 'yearly'] as const).map((r) => (
           <TouchableOpacity key={r} onPress={() => setRepeat(r)} style={{ paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.md, backgroundColor: repeat === r ? theme.primary : theme.surfaceContainer }}>
-            <M3Text role="labelLarge" color={repeat === r ? theme.primary : theme.onSurfaceVariant}>
+            <M3Text role="labelLarge" color={repeat === r ? theme.onPrimary : theme.onSurfaceVariant}>
               {r === 'none' ? t('plan.repeatNone') : r === 'daily' ? t('plan.repeatDaily') : r === 'weekly' ? t('plan.repeatWeekly') : r === 'monthly' ? t('plan.repeatMonthly') : t('plan.repeatYearly')}
             </M3Text>
           </TouchableOpacity>
