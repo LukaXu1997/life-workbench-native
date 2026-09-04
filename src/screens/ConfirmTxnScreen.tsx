@@ -126,6 +126,45 @@ export default function ConfirmTxnScreen({ id }: { id: string }) {
     return 0;
   }, [rec, isMatch, orig, cross, amountStr, d.fx.rateScaled]);
 
+  // Step 5: the "teach the app" prompt after the 3rd+ confirmation.
+  // IMPORTANT: must be declared BEFORE the `if (!rec) return` below so the hook
+  // count stays identical on every render (avoids "Rendered more hooks" crash).
+  useEffect(() => {
+    if (!learn) return;
+    Alert.alert(
+      t('autoBook.learnTitle'),
+      t('autoBook.learnBody', { app: learn.sourceApp || t('common.other') }),
+      [
+        { text: t('autoBook.learnDecline'), style: 'cancel', onPress: () => handleLearnChoice('decline') },
+        { text: t('autoBook.learnFillOnly'), onPress: () => handleLearnChoice('fill') },
+        { text: t('autoBook.learnAutoBook'), onPress: () => handleLearnChoice('auto') },
+      ]
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [learn]);
+
+  const handleLearnChoice = async (choice: 'decline' | 'fill' | 'auto') => {
+    const s = learn;
+    setLearn(null);
+    setBusy(false);
+    if (!s) {
+      nav.goTabs();
+      return;
+    }
+    try {
+      if (choice === 'decline') {
+        // Remember the choice so we don't prompt again for this signature; the rule
+        // is marked ignore (never auto-books) rather than silently dropping the hint.
+        await addRule(makeRuleFromSuggestion(s, { autoBook: false, ignore: true }));
+      } else {
+        await addRule(makeRuleFromSuggestion(s, { autoBook: choice === 'auto' }));
+      }
+    } catch {
+      /* rule creation is best-effort */
+    }
+    nav.goTabs();
+  };
+
   if (!rec) {
     return (
       <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: theme.bg, zIndex: 10 }}>
@@ -189,53 +228,6 @@ export default function ConfirmTxnScreen({ id }: { id: string }) {
     } catch {
       setBusy(false);
     }
-  };
-
-  // Step 5: the "teach the app" prompt after the 3rd+ confirmation.
-  useEffect(() => {
-    if (!learn) return;
-    Alert.alert(
-      t('autoBook.learnTitle'),
-      t('autoBook.learnBody', { app: learn.sourceApp || t('common.other') }),
-      [
-        {
-          text: t('autoBook.learnDecline'),
-          style: 'cancel',
-          onPress: () => handleLearnChoice('decline'),
-        },
-        {
-          text: t('autoBook.learnFillOnly'),
-          onPress: () => handleLearnChoice('fill'),
-        },
-        {
-          text: t('autoBook.learnAutoBook'),
-          onPress: () => handleLearnChoice('auto'),
-        },
-      ]
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [learn]);
-
-  const handleLearnChoice = async (choice: 'decline' | 'fill' | 'auto') => {
-    const s = learn;
-    setLearn(null);
-    setBusy(false);
-    if (!s) {
-      nav.goTabs();
-      return;
-    }
-    try {
-      if (choice === 'decline') {
-        // Remember the choice so we don't prompt again for this signature; the rule
-        // is marked ignore (never auto-books) rather than silently dropping the hint.
-        await addRule(makeRuleFromSuggestion(s, { autoBook: false, ignore: true }));
-      } else {
-        await addRule(makeRuleFromSuggestion(s, { autoBook: choice === 'auto' }));
-      }
-    } catch {
-      /* rule creation is best-effort */
-    }
-    nav.goTabs();
   };
 
   const onIgnore = () => {
