@@ -25,6 +25,7 @@ import LanguageSettingsScreen from './src/screens/me/LanguageSettingsScreen';
 import FinancePreferencesScreen from './src/screens/me/FinancePreferencesScreen';
 import NotificationSettingsScreen from './src/screens/me/NotificationSettingsScreen';
 import DataAndSecurityScreen from './src/screens/me/DataAndSecurityScreen';
+import AutoBookSettingsScreen from './src/screens/me/AutoBookSettingsScreen';
 import AboutScreen from './src/screens/me/AboutScreen';
 import ChangelogScreen from './src/screens/me/ChangelogScreen';
 import { AppTabBar } from './src/components/AppTabBar';
@@ -107,6 +108,7 @@ function MeStack() {
       <MeNav.Screen name="FinancePreferences" component={FinancePreferencesScreen} />
       <MeNav.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
       <MeNav.Screen name="DataAndSecurity" component={DataAndSecurityScreen} />
+      <MeNav.Screen name="AutoBookSettings" component={AutoBookSettingsScreen} />
       <MeNav.Screen name="About" component={AboutScreen} />
       <MeNav.Screen name="Changelog" component={ChangelogScreen} />
     </MeNav.Navigator>
@@ -140,7 +142,7 @@ function Root() {
   const nav = useNotifyNav();
   const { theme, isDark } = useTheme();
   const [fontsLoaded] = useFonts({
-    MaterialCommunityIcons: require('./assets/fonts/MaterialCommunityIcons.ttf'),
+    'material-community': require('./assets/fonts/MaterialCommunityIcons.ttf'),
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
