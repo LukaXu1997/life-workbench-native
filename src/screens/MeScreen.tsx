@@ -283,6 +283,12 @@ export default function MeScreen({ navigation }: any) {
               badge={pendingCount}
               onPress={() => nav.openPending()}
             />
+            <NavRow
+              icon={ICONS.automation}
+              title={t('me.autoBook')}
+              subtitle={t('me.autoBookHint')}
+              onPress={() => navigation.navigate('AutoBookSettings')}
+            />
           </ListGroup>
 
           {/* ═══ 个性化 ═══ */}

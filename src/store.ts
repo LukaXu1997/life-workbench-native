@@ -21,6 +21,16 @@ import { clampDay, migrateTxns } from './migration';
 import { secureGet, secureSet, secureDelete, SECURE_KEYS } from './secure';
 import { sha256 } from '@noble/hashes/sha256';
 import { t } from './i18n';
+// Auto-booking data is part of the user's learned preferences and must travel
+// with backups and Supabase sync, so its accessors are pulled into the snapshot.
+import {
+  getRules,
+  setRules,
+  getFeedback,
+  setFeedback,
+  getAutoBookSettings,
+  setAutoBookSettings,
+} from './automationStore';
 
 // Key names MUST match the PWA (wb_life_*) so backups are 1:1 compatible.
 export const KEYS = {
@@ -338,20 +348,37 @@ export const store = {
 
 // ---- snapshot for backup/restore ----
 export async function takeSnapshot(): Promise<Snapshot> {
-  const [txns, budgets, habits, schedule, shopping, media, journal, inbox, cardDays, accounts, fx] =
-    await Promise.all([
-      store.getTxns(),
-      store.getBudgets(),
-      store.getHabits(),
-      store.getTasks(),
-      store.getShopping(),
-      store.getMedia(),
-      store.getJournal(),
-      store.getInbox(),
-      store.getCardDays(),
-      store.getAccounts(),
-      store.getFx(),
-    ]);
+  const [
+    txns,
+    budgets,
+    habits,
+    schedule,
+    shopping,
+    media,
+    journal,
+    inbox,
+    cardDays,
+    accounts,
+    fx,
+    automationRules,
+    automationFeedback,
+    automationSettings,
+  ] = await Promise.all([
+    store.getTxns(),
+    store.getBudgets(),
+    store.getHabits(),
+    store.getTasks(),
+    store.getShopping(),
+    store.getMedia(),
+    store.getJournal(),
+    store.getInbox(),
+    store.getCardDays(),
+    store.getAccounts(),
+    store.getFx(),
+    getRules(),
+    getFeedback(),
+    getAutoBookSettings(),
+  ]);
   const now = new Date().toISOString();
   const base: Snapshot = {
     schemaVersion: SCHEMA_VERSION,
@@ -372,6 +399,9 @@ export async function takeSnapshot(): Promise<Snapshot> {
     cardDueDay: cardDays.due,
     version: VERSION_NAME,
     exportedAt: now,
+    automationRules,
+    automationFeedback,
+    automationSettings,
   };
   const counts = {
     txns: txns.length,
@@ -436,6 +466,11 @@ export async function applySnapshot(data: Partial<Snapshot>): Promise<void> {
   if (data.cardStmtDay !== undefined || data.cardDueDay !== undefined) {
     ops.push(store.setCardDays(data.cardStmtDay ?? null, data.cardDueDay ?? null));
   }
+  // Auto-booking learned data. Only written when present so restoring an older
+  // snapshot (which lacks these fields) never clobbers current rules.
+  if (data.automationRules) ops.push(setRules(data.automationRules));
+  if (data.automationFeedback) ops.push(setFeedback(data.automationFeedback));
+  if (data.automationSettings) ops.push(setAutoBookSettings(data.automationSettings));
   await Promise.all(ops);
 }
 

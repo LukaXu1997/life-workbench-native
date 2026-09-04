@@ -8,6 +8,12 @@ import { useNotifyNav } from '../notify/NotifyNav';
 import { confirmPending, ignorePending } from '../notify/confirmStore';
 import { computeFxRate } from '../notify/confirm';
 import {
+  recordConfirmation,
+  makeRuleFromSuggestion,
+  addRule,
+} from '../automationStore';
+import type { RuleSuggestion } from '../automation';
+import {
   buildConfirmForm,
   minorToAmountStr,
   shouldSyncForm,
@@ -56,6 +62,9 @@ export default function ConfirmTxnScreen({ id }: { id: string }) {
     isMatch && rec ? minorToAmountStr(rec.amountMinor) : ''
   );
   const [busy, setBusy] = useState(false);
+  // Step 5: when the system has learned enough to suggest a rule, surface a prompt
+  // so the user decides (never silently create a rule). null = no suggestion.
+  const [learn, setLearn] = useState<RuleSuggestion | null>(null);
 
   // Tracks whether the user has manually edited any field. Once true, auto-sync stops
   // so unrelated state refreshes never clobber their input.
@@ -155,10 +164,78 @@ export default function ConfirmTxnScreen({ id }: { id: string }) {
         }
         await confirmPending(rec.id, edits);
       }
+
+      // Step 5: record the confirmation and ask the user whether to learn a rule.
+      // recordConfirmation returns a suggestion ONLY after enough identical confirms
+      // (≥3); it never creates a rule itself. If a suggestion exists, we hold on the
+      // screen and let the user choose — navigation happens in handleLearnChoice.
+      try {
+        const learnEdits = isMatch
+          ? { accountId: accountId || undefined }
+          : {
+              accountId: accountId || undefined,
+              category: category.trim() || rec.suggestedCategory,
+              merchant: merchant.trim(),
+            };
+        const suggestion = await recordConfirmation(rec.id, learnEdits);
+        if (suggestion) {
+          setLearn(suggestion);
+          return;
+        }
+      } catch {
+        /* learning is best-effort; never block the confirmation */
+      }
       nav.goTabs();
     } catch {
       setBusy(false);
     }
+  };
+
+  // Step 5: the "teach the app" prompt after the 3rd+ confirmation.
+  useEffect(() => {
+    if (!learn) return;
+    Alert.alert(
+      t('autoBook.learnTitle'),
+      t('autoBook.learnBody', { app: learn.sourceApp || t('common.other') }),
+      [
+        {
+          text: t('autoBook.learnDecline'),
+          style: 'cancel',
+          onPress: () => handleLearnChoice('decline'),
+        },
+        {
+          text: t('autoBook.learnFillOnly'),
+          onPress: () => handleLearnChoice('fill'),
+        },
+        {
+          text: t('autoBook.learnAutoBook'),
+          onPress: () => handleLearnChoice('auto'),
+        },
+      ]
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [learn]);
+
+  const handleLearnChoice = async (choice: 'decline' | 'fill' | 'auto') => {
+    const s = learn;
+    setLearn(null);
+    setBusy(false);
+    if (!s) {
+      nav.goTabs();
+      return;
+    }
+    try {
+      if (choice === 'decline') {
+        // Remember the choice so we don't prompt again for this signature; the rule
+        // is marked ignore (never auto-books) rather than silently dropping the hint.
+        await addRule(makeRuleFromSuggestion(s, { autoBook: false, ignore: true }));
+      } else {
+        await addRule(makeRuleFromSuggestion(s, { autoBook: choice === 'auto' }));
+      }
+    } catch {
+      /* rule creation is best-effort */
+    }
+    nav.goTabs();
   };
 
   const onIgnore = () => {

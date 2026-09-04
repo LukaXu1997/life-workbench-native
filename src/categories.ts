@@ -30,3 +30,42 @@ export function isPresetCategory(kind: 'expense' | 'income', label: string, t: (
   const list = kind === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
   return list.some((c) => t(c.labelKey) === label);
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 分类配色：用于「分类占比」环形图 / 图例。预设分类固定映射，自定义分类按
+// key 做稳定哈希着色，保证同一分类在不同月份颜色一致（不会每次重排乱跳）。
+// 调色板刻意走低饱和、与 Notion 中性底协调，并在暗色下提高明度。
+// ─────────────────────────────────────────────────────────────────────────────
+const CAT_PALETTE_LIGHT = [
+  '#D66A60', // 珊瑚红（餐饮）
+  '#1F8A7A', // 蓝绿（交通）
+  '#9A6A00', // 琥珀（购物）
+  '#5B7FBF', // 蓝（居家）
+  '#B07CC6', // 紫（娱乐）
+  '#5FA85F', // 绿（医疗）
+  '#C9774B', // 橙（其他）
+  '#4FA3A3', // 青
+  '#C25B7C', // 玫红
+  '#7A8A3B', // 橄榄
+];
+const CAT_PALETTE_DARK = [
+  '#EFA79D',
+  '#5FCAB9',
+  '#E8B667',
+  '#9DB4E8',
+  '#D6A8E8',
+  '#9FD99F',
+  '#E8A87C',
+  '#8FD3D3',
+  '#E89DB8',
+  '#BcC78B',
+];
+
+export function colorForCategory(key: string, isDark = false): string {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) {
+    h = (h * 31 + key.charCodeAt(i)) >>> 0;
+  }
+  const pal = isDark ? CAT_PALETTE_DARK : CAT_PALETTE_LIGHT;
+  return pal[h % pal.length];
+}

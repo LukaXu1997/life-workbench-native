@@ -172,14 +172,29 @@ export async function ingestEnvelopes(envs: NotifyEnvelope[]): Promise<number> {
   };
   let existing = await getPending();
   let added = 0;
+  const addedIds: string[] = [];
   for (const env of envs) {
     const res = ingestEnvelope(env, ctx, existing);
     if (res.record) {
       existing = [...existing, res.record];
+      addedIds.push(res.record.id);
       added++;
     }
   }
   if (added > 0) await setPending(existing);
+  // Auto-book any freshly-ingested candidate that a learned rule now covers. This is
+  // the only auto-book trigger on the ingest path; it reuses bookPendingTransaction,
+  // which itself reuses the manual-confirm Txn sink and is idempotent.
+  if (addedIds.length > 0) {
+    try {
+      // Lazy require keeps the import graph acyclic (automationStore imports us).
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { bookCandidates } = require('./automationStore');
+      await bookCandidates(addedIds);
+    } catch {
+      /* auto-book is best-effort; never block ingestion on its failure */
+    }
+  }
   return added;
 }
 

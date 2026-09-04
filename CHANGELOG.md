@@ -10,6 +10,16 @@
 
 ---
 
+## V3.1.0 — 2026-09-04
+财务看板升级（SCHEMA_VERSION 仍为 2，无存储结构/导航/功能逻辑改动）：
+- 收支趋势图：新增 `src/components/TrendChart.tsx`（react-native-svg），支持「按月 / 按年」切换，支出柱 + 收入实线 + 结余虚线，颜色由主题注入，纯 SVG 无第三方图表库
+- 分类占比：新增 `DonutChart` + `FinanceScreen` 的 `CategoryShareCard`，环形图展示本月各大类花费分布（最多 8 类、含未分类），支持币种切换；分类配色由 `src/categories.ts` 的稳定哈希调色板（`colorForCategory`）驱动
+- 预算提醒：新增 `BudgetAlertBanner` 应用内横幅（不发推送），按币种检测预算，接近上限（≥80%）或已超支时给出醒目提示，并一键跳转到预算页
+- 聚合核心 `src/import/financeCharts.ts`：`monthlySeries` / `yearlySeries` / `spendByCategory` / `defaultSpendCurrency`，纯函数、无 RN 依赖，覆盖双币种、退款净额、自定义分类与统计纳入开关
+- 测试与门禁：新增 `scripts/finance-chart-test-runner.js`（RN-free 转译 + 执行，21 项断言），并接入 `npm run verify` 的 `test:finance`
+- 国际化：zh/en 新增 11 个 finance 键（趋势图 / 分类占比 / 预算提醒相关）
+- 版本：MINOR bump，versionCode 30004 → 30100（PATCH 归零），未改动 SCHEMA_VERSION 与既有存储结构
+
 ## V3.0.4 — 2026-09-03
 更新内容展示产品化（SCHEMA_VERSION 仍为 2，无存储结构/导航/功能逻辑改动）：
 - 新增「更新内容」页面（ChangelogScreen）：将原先散落在 `version.ts` 的开发者风格 `RELEASE_NOTES` 迁移为 `src/changelog.ts` 中的中英文双语、面向普通用户的产品化文案，按版本倒序展示，层级清晰

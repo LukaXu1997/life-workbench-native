@@ -28,12 +28,26 @@ import {
 import { Card, ScreenHeader, PrimaryButton, ListGroup, NavRow } from '../components/kit';
 import { AnimatedListItem, AnimatedPressable, AnimatedProgress, AnimatedTabIndicator, AppBottomSheet, FadeInContent } from '../components/anim';
 import { Amount, BALANCE_MASK } from '../components/Amount';
+import { DonutChart } from '../components/DonutChart';
+import { TrendChart, TrendPoint } from '../components/TrendChart';
 import { useBottomContentInset } from '../components/layout';
 import { Icon, ICONS } from '../icons';
 import { ImportFlowModal } from './ImportFlowModal';
 import { radius, space, pageMargin, cardGap, touchMin } from '../tokens';
-import { budgetStatus } from '../calc';
-import { financeSummary, recomputeAccounts, cardSummary, nextDueDate, financeStats } from '../calc';
+import {
+  budgetStatus,
+  financeSummary,
+  recomputeAccounts,
+  cardSummary,
+  nextDueDate,
+  financeStats,
+  monthlySeries,
+  yearlySeries,
+  spendByCategory,
+  defaultSpendCurrency,
+} from '../calc';
+import type { MonthPoint, YearPoint } from '../calc';
+import { colorForCategory } from '../categories';
 import {
   formatMoney,
   convertMinor,
@@ -454,6 +468,11 @@ function OverviewTab({
     >
       <MonthNav ym={ym} setYm={setYm} />
 
+      {/* 预算超支 / 接近上限提醒（仅应用内 banner，不发推送） */}
+      <View style={{ marginBottom: cardGap }}>
+        <BudgetAlertBanner d={d} ym={ym} onGo={onGo} />
+      </View>
+
       {/* ① 净资产 — 唯一的大数字（原为「总资产」，但资产端未完整录入时常显示为负，改以净资产为主指标更合理） */}
       {isEmpty ? (
         <Card style={{ alignItems: 'center', paddingVertical: 36 }}>
@@ -659,9 +678,12 @@ function OverviewTab({
         <AccountsSection d={d} today={today} />
       </View>
 
-      {/* ⑤ 支出趋势 */}
+      {/* ⑤ 趋势图（按月 / 按年）+ ⑥ 分类占比 */}
       <View style={{ marginTop: cardGap }}>
         <TrendSection d={d} ym={ym} />
+      </View>
+      <View style={{ marginTop: cardGap }}>
+        <CategoryShareCard d={d} ym={ym} />
       </View>
     </ScrollView>
   );
@@ -1102,64 +1124,170 @@ function AccountsSection({ d, today }: { d: any; today: string }) {
 }
 
 /* ------------------------------------------------------------------ */
-/* 概览 ⑤ 支出趋势（近 6 个月柱状 + 本月分类占比）                      */
+/* 概览 预算超支 / 接近上限提醒（仅应用内 banner，不发推送）             */
+/* ------------------------------------------------------------------ */
+
+function BudgetAlertBanner({ d, ym, onGo }: { d: any; ym: string; onGo: (s: FSeg) => void }) {
+  const { theme } = useTheme();
+  const { t } = useI18n();
+  const statuses = useMemo(
+    () => (['CNY', 'MYR'] as Currency[]).map((c) => budgetStatus(d.txns, d.budgets, ym, c)),
+    [d.txns, d.budgets, ym]
+  );
+  const alerts = statuses.filter((s) => s.hasBudget && (s.state === 'over' || s.state === 'warn'));
+  if (alerts.length === 0) return null;
+
+  // 优先呈现最严重的状态（over 优先于 warn）
+  const isOver = alerts.some((a) => a.state === 'over');
+  const bg = isOver ? theme.errorContainer : theme.warningContainer;
+  const fg = isOver ? theme.onErrorContainer : theme.onWarningContainer;
+  const accent = isOver ? theme.error : theme.warning;
+  const title = isOver ? t('finance.budgetAlertOver') : t('finance.budgetAlertWarn');
+  const detail = alerts
+    .map((a) =>
+      a.remain < 0
+        ? `${a.currency} ${t('finance.overBudgetLabel')} ${formatMoney(Math.abs(a.remain), a.currency)}`
+        : `${a.currency} ${t('finance.monthRemain')} ${formatMoney(a.remain, a.currency)}`
+    )
+    .join(' · ');
+
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: space.md,
+        backgroundColor: bg,
+        borderRadius: radius.md,
+        padding: space.md,
+      }}
+      accessibilityRole="alert"
+    >
+      <View style={{ width: 4, alignSelf: 'stretch', borderRadius: 2, backgroundColor: accent }} />
+      <Icon name={ICONS.warning} size={20} color={accent} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <M3Text role="titleMedium" color={fg} numberOfLines={1}>
+          {title}
+        </M3Text>
+        <M3Text role="bodyMedium" color={fg} numberOfLines={2} style={{ marginTop: 2 }}>
+          {detail}
+        </M3Text>
+      </View>
+      <TouchableOpacity
+        onPress={() => onGo('budget')}
+        accessibilityRole="button"
+        accessibilityLabel={t('finance.budgetAlertCta')}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <M3Text role="labelLarge" color={accent}>
+          {t('finance.budgetAlertCta')}
+        </M3Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 概览 ⑤ 趋势图（按月 / 按年，支出柱 + 收入/结余折线）                 */
 /* ------------------------------------------------------------------ */
 
 function TrendSection({ d, ym }: { d: any; ym: string }) {
   const { theme } = useTheme();
   const { t } = useI18n();
   // 默认落在真正有支出的币种上：导入过 TNG(MYR) 就直接看到曲线，而不是空的 CNY 图
-  const [cur, setCur] = useState<Currency>(() => {
-    let myr = 0;
-    let cny = 0;
-    for (const tx of d.txns as Txn[]) {
-      if (tx.type !== 'expense') continue;
-      if (txnOrigCurrency(tx) === 'MYR') myr += txnOrigMinor(tx);
-      else cny += txnOrigMinor(tx);
+  const [cur, setCur] = useState<Currency>(() => defaultSpendCurrency(d.txns as Txn[]));
+  const [range, setRange] = useState<'month' | 'year'>('month');
+
+  const series: TrendPoint[] = useMemo(() => {
+    if (range === 'month') {
+      return monthlySeries(d.txns as Txn[], { cur, months: 12, until: ym }).map((p) => ({
+        label: p.ym.slice(5),
+        income: p.income,
+        expense: p.expense,
+        net: p.net,
+      }));
     }
-    return myr >= cny ? 'MYR' : 'CNY';
-  });
+    return yearlySeries(d.txns as Txn[], { cur, years: 5, until: ym }).map((p) => ({
+      label: p.year,
+      income: p.income,
+      expense: p.expense,
+      net: p.net,
+    }));
+  }, [d.txns, cur, range, ym]);
 
-  const spendable = (tx: Txn) =>
-    tx.type === 'expense' &&
-    tx.affectsIncomeExpense !== false &&
-    tx.transactionNature !== 'investment' &&
-    txnOrigCurrency(tx) === cur;
+  const hasData = series.some((p) => p.income > 0 || p.expense > 0 || p.net !== 0);
 
-  const { entries, max, months, maxM } = useMemo(() => {
-    const byCat: Record<string, number> = {};
-    for (const tx of d.txns as Txn[]) {
-      if (!tx.date.startsWith(ym) || !spendable(tx)) continue;
-      const key = tx.category || t('finance.uncategorized');
-      byCat[key] = (byCat[key] || 0) + txnOrigMinor(tx);
-    }
-    const es = Object.entries(byCat).sort((a, b) => b[1] - a[1]).slice(0, 5);
-    const mx = es.length ? Math.max(...es.map((e) => e[1])) : 1;
-
-    const ms: { ym: string; expense: number }[] = [];
-    const [cy, cm] = ym.split('-').map(Number);
-    for (let i = 5; i >= 0; i--) {
-      let mm = cm - i;
-      let yy = cy;
-      if (mm < 1) {
-        mm += 12;
-        yy--;
-      }
-      const key = `${yy}-${`${mm}`.padStart(2, '0')}`;
-      let sum = 0;
-      for (const tx of d.txns as Txn[]) {
-        if (!tx.date.startsWith(key) || !spendable(tx)) continue;
-        sum += txnOrigMinor(tx);
-      }
-      ms.push({ ym: key, expense: sum });
-    }
-    return { entries: es, max: mx, months: ms, maxM: Math.max(...ms.map((m) => m.expense), 1) };
-  }, [d.txns, ym, cur]);
-
-  const total = entries.reduce((s, e) => s + e[1], 0);
   return (
     <Card>
       <CardTitle title={t('financeExtra.trendTitle')} />
+      <View style={{ marginTop: space.md }}>
+        <Segmented
+          segments={[
+            { key: 'month', label: t('finance.trendRangeMonth') },
+            { key: 'year', label: t('finance.trendRangeYear') },
+          ]}
+          active={range}
+          onChange={(k) => setRange(k as 'month' | 'year')}
+        />
+      </View>
+      <View style={{ marginTop: space.sm }}>
+        <Segmented
+          segments={[
+            { key: 'CNY', label: t('finance.cny') },
+            { key: 'MYR', label: t('finance.myr') },
+          ]}
+          active={cur}
+          onChange={(k) => setCur(k as Currency)}
+        />
+      </View>
+      <View style={{ marginTop: space.lg }}>
+        {hasData ? (
+          <TrendChart
+            points={series}
+            incomeColor={theme.income}
+            expenseColor={theme.expense}
+            netColor={theme.onSurfaceVariant}
+            incomeLabel={t('finance.trendIncome')}
+            expenseLabel={t('finance.trendExpense')}
+            netLabel={t('finance.trendNet')}
+            gridColor={theme.surfaceContainerHigh}
+            textColor={theme.onSurfaceVariant}
+            height={160}
+          />
+        ) : (
+          <M3Text role="bodyMedium" color={theme.onSurfaceVariant}>
+            {t('finance.noSpend')}
+          </M3Text>
+        )}
+      </View>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* 概览 ⑥ 分类占比（环形图 + 图例，跟随 MonthNav 选中的月份）          */
+/* ------------------------------------------------------------------ */
+
+function CategoryShareCard({ d, ym }: { d: any; ym: string }) {
+  const { theme, isDark } = useTheme();
+  const { t } = useI18n();
+  const [cur, setCur] = useState<Currency>(() => defaultSpendCurrency(d.txns as Txn[]));
+
+  const shares = useMemo(() => {
+    const cats = spendByCategory(d.txns as Txn[], ym, cur, { limit: 8 });
+    return cats.map((c) => ({
+      label: c.category === 'uncategorized' ? t('finance.uncategorized') : c.category,
+      amountMinor: c.amountMinor,
+      pct: c.pct,
+      color: colorForCategory(c.category, isDark),
+    }));
+  }, [d.txns, ym, cur, isDark, t]);
+
+  const total = shares.reduce((s, x) => s + x.amountMinor, 0);
+
+  return (
+    <Card>
+      <CardTitle title={t('finance.catShareTitle')} />
       <View style={{ marginTop: space.md }}>
         <Segmented
           segments={[
@@ -1170,70 +1298,23 @@ function TrendSection({ d, ym }: { d: any; ym: string }) {
           onChange={(k) => setCur(k as Currency)}
         />
       </View>
-
-      <M3Text role="labelMedium" color={theme.onSurfaceVariant} style={{ marginTop: space.lg }}>
-        {t('finance.trend6')}
-      </M3Text>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: space.sm, height: 104, marginTop: space.sm }}>
-        {months.map((mm) => (
-          <View key={mm.ym} style={{ flex: 1, justifyContent: 'flex-end', height: '100%', minWidth: 0 }}>
-            <View
-              style={{
-                width: '100%',
-                height: `${(mm.expense / maxM) * 100}%`,
-                backgroundColor: mm.ym === ym ? theme.primary : theme.primaryContainer,
-                borderRadius: radius.sm,
-                minHeight: mm.expense > 0 ? 4 : 0,
-              }}
-            />
-          </View>
-        ))}
-      </View>
-      <View style={{ flexDirection: 'row', gap: space.sm, marginTop: 6 }}>
-        {months.map((mm) => (
-          <M3Text
-            key={mm.ym}
-            role="labelSmall"
-            color={theme.onSurfaceVariant}
-            style={[TNUM, { flex: 1, textAlign: 'center' }]}
-            numberOfLines={1}
-          >
-            {mm.ym.slice(5)}
+      <View style={{ marginTop: space.lg }}>
+        {total === 0 ? (
+          <M3Text role="bodyMedium" color={theme.onSurfaceVariant}>
+            {t('finance.catShareEmpty')}
           </M3Text>
-        ))}
+        ) : (
+          <DonutChart
+            shares={shares}
+            total={total}
+            cur={cur}
+            centerLabel={t('finance.catShareCenter')}
+            trackColor={theme.surfaceContainerHigh}
+            textColor={theme.onSurfaceVariant}
+            pctColor={theme.onSurfaceVariant}
+          />
+        )}
       </View>
-
-      <Hairline />
-
-      {entries.length === 0 ? (
-        <M3Text role="bodyMedium" color={theme.onSurfaceVariant}>
-          {t('finance.noSpend')}
-        </M3Text>
-      ) : (
-        entries.map(([cat, amt], i) => (
-          <View key={cat} style={{ marginTop: i === 0 ? 0 : space.lg }}>
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                gap: space.sm,
-                marginBottom: 6,
-              }}
-            >
-              <M3Text role="bodyMedium" numberOfLines={1} style={{ flexShrink: 1 }}>
-                {cat}
-              </M3Text>
-              <M3Text role="labelLarge" color={theme.onSurfaceVariant} style={TNUM} numberOfLines={1}>
-                {formatMoney(amt, cur)}
-              </M3Text>
-              <M3Text role="labelMedium" color={theme.onSurfaceVariant} style={TNUM}>
-                {total > 0 ? `${Math.round((amt / total) * 100)}%` : '0%'}
-              </M3Text>
-            </View>
-            <AnimatedProgress value={amt / max} color={theme.primary} trackColor={theme.surfaceContainerHigh} height={6} />
-          </View>
-        ))
-      )}
     </Card>
   );
 }

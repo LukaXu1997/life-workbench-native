@@ -17,6 +17,14 @@ export {
 } from './import/recompute';
 export type { BudgetStatus } from './import/recompute';
 
+// Chart aggregation (trend series + category share) — pure, unit-tested.
+export { monthlySeries, yearlySeries, spendByCategory, defaultSpendCurrency } from './import/financeCharts';
+export type { MonthPoint, YearPoint, CatShare } from './import/financeCharts';
+
+// Plan module (timeline / recurring / habit-link) — pure, unit-tested.
+export { listRecurring, nextDue, habitCalendarMap, timelineGroups, addPeriod } from './plan';
+export type { TimelineKey, TimelineGroup } from './plan';
+
 export function fmt(n: number, cur: 'CNY' | 'MYR' = 'CNY'): string {
   const sym = cur === 'CNY' ? '¥' : 'RM';
   const v = Math.round(n * 100) / 100;

@@ -1,7 +1,7 @@
 import type { NotifyEnvelope } from './types';
-import type { PendingRecord, PendingStatus } from '../types';
+import type { PendingRecord, PendingStatus, CandidateConfidence, CandidateReason } from '../types';
 import { parseEnvelope } from './parsers';
-import { recognize, type RecognizeContext } from './recognizer';
+import { recognize, normMerchant, type RecognizeContext } from './recognizer';
 import { rawDigestOf, fingerprintOf, findPostingMatch } from './dedup';
 import { maskedPreview } from './redact';
 import { formatMoney } from '../money';
@@ -72,6 +72,21 @@ export function ingestEnvelope(
     if (orig) predictedSettleMinor = orig.predictedSettleMinor ?? draft.predictedSettleMinor;
   }
 
+  // Per-field confidence used by canAutoBook. Direction/account/category are taken
+  // from the recognizer's structured output (high trust); amount uses the parser's
+  // own confidence; duplicateRisk starts at 0 (set later by the dedup layer).
+  const confidenceDetail: CandidateConfidence = {
+    amount: draft.confidence,
+    direction: 1,
+    account: draft.suggestedAccountId ? draft.confidence : 0,
+    category: draft.confidence,
+    merchant: draft.confidence,
+    duplicateRisk: 0,
+  };
+  const reasons: CandidateReason[] = draft.needsReview
+    ? [{ field: 'rule', code: 'low_confidence', text: 'below confidence floor' }]
+    : [];
+
   const record: PendingRecord = {
     id: uid('pn'),
     sourceApp: env.pkg,
@@ -94,6 +109,16 @@ export function ingestEnvelope(
     bankRef: draft.bankRef,
     matchOfId: matched ? (matchId as string) : undefined,
     needsReview: draft.needsReview || matchId === 'ambiguous' || undefined,
+    // ---- auto-booking learning fields (all optional; populated for new records) ----
+    sourceType: 'notification',
+    rawMerchant: draft.merchant, // original extracted text — NEVER logged
+    normalizedMerchant: normMerchant(draft.merchant),
+    accountHint: draft.suggestedAccountId,
+    externalReference: draft.bankRef,
+    confidenceDetail,
+    reasons,
+    matchedRuleIds: [],
+    processingStatus: draft.needsReview ? 'needs_review' : 'pending',
   };
   return { record };
 }

@@ -29,6 +29,30 @@ export type ChangelogEntry = {
 // 由新到旧排列（页面直接按数组顺序渲染，最新在最前）。
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: 'V3.1.0',
+    date: '2026-09-04',
+    zh: {
+      title: '财务看板与计划升级',
+      items: [
+        '财务看板升级：新增收支趋势图与分类占比环形图（支持切换币种），预算接近上限时给出醒目提示。',
+        '计划页时间线：可在月视图与按「今天 / 明天 / 本周 / 更晚」分组的时间线间切换，并内置「周期」分栏集中管理重复任务。',
+        '日历每日习惯打卡点：选中任意日期即可原地打卡当日习惯，时间线今日分组也并入习惯条目。',
+        '新增「自动记账」：连续 3 次以相同账户和分类确认同一来源的交易后，系统会建议你创建规则，可选择「仅自动填写」或「自动入账」。',
+        '「设置 → 自动记账」可管理已学会的规则、设置自动入账的金额上限，并随时撤销最近的自动入账；已学规则会随备份与云同步在换设备后保留。',
+      ],
+    },
+    en: {
+      title: 'Finance dashboard & planning',
+      items: [
+        'Finance dashboard upgraded: trend chart and category-share donut (with currency switching), plus a clear banner when a budget nears its limit.',
+        'Plan tab timeline: toggle between month grid and an agenda grouped by Today / Tomorrow / This week / Later, with a Recurring section for repeated tasks.',
+        'Calendar habit check-ins: tap any date to check in that day’s habits in place, and the Timeline’s Today group now includes habit rows.',
+        'New auto-booking: after you confirm the same kind of transaction from the same app 3 times with the same account and category, the app suggests a rule — you choose auto-fill only or auto-book.',
+        'Settings → Auto-booking lets you manage taught rules, cap the amount that can be auto-booked, and undo recent auto-booked transactions at any time; taught rules are included in backup and cloud sync so they survive a device change.',
+      ],
+    },
+  },
+  {
     version: 'V3.0.4',
     date: '2026-09-03',
     zh: {

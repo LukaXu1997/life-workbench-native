@@ -1,6 +1,7 @@
 // Data model — mirrors the PWA's localStorage keys so backups are 1:1 compatible.
 
 import type { ImportSource } from './import/models';
+import type { AutomationRule, ConfirmationFeedback, AutoBookSettings } from './automation';
 
 export type Currency = 'CNY' | 'MYR';
 export type TxnType = 'income' | 'expense' | 'transfer' | 'repayment' | 'refund';
@@ -192,8 +193,35 @@ export interface SbConfig {
 // Recognized notifications land here FIRST; they never enter the Txn ledger
 // until the user confirms. Pending records are local-only (not in snapshots/backups).
 
-export type PendingStatus = 'pending' | 'confirmed' | 'ignored' | 'matched';
+export type PendingStatus = 'pending' | 'confirmed' | 'ignored' | 'matched' | 'duplicate' | 'auto_booked';
 export type PostingStatus = 'awaiting_posting' | 'posted' | null;
+
+// ---- Auto-booking learning fields (Steps 1-9) ----
+// All optional so pre-existing `wb_life_pending` records still parse without crashing.
+export type CandidateDirection = 'expense' | 'income';
+export type ProcessingStatus =
+  | 'pending'
+  | 'needs_review'
+  | 'confirmed'
+  | 'ignored'
+  | 'duplicate'
+  | 'auto_booked';
+
+export interface CandidateConfidence {
+  amount: number;
+  direction: number;
+  account: number;
+  category: number;
+  merchant: number;
+  /** 0 = definitely not a duplicate; 1 = very likely a duplicate. */
+  duplicateRisk: number;
+}
+
+export interface CandidateReason {
+  field: 'amount' | 'direction' | 'account' | 'category' | 'merchant' | 'duplicate' | 'rule';
+  code: string;
+  text: string;
+}
 
 export interface PendingRecord {
   id: string;
@@ -218,6 +246,18 @@ export interface PendingRecord {
   matchOfId?: string; // linked original pending/txn (posting match)
   txnId?: string; // set after confirmation -> the created Txn id
   needsReview?: boolean; // low-confidence flag
+  // ---- auto-booking learning extension (Steps 1-9; all optional: old records load fine) ----
+  sourceType?: 'notification' | 'ocr' | 'shared' | 'statement';
+  rawMerchant?: string; // original merchant text extracted from the notification/OCR — NEVER logged
+  normalizedMerchant?: string; // normMerchant(merchant), used for display/grouping
+  accountHint?: string; // suggestedAccountId at capture time, used as a rule condition hint
+  externalReference?: string; // opaque ref (e.g. bank ref) — never logged in full
+  confidenceDetail?: CandidateConfidence; // per-field confidence used by canAutoBook
+  reasons?: CandidateReason[]; // why this candidate matched / was flagged
+  matchedRuleIds?: string[]; // automation rules that matched this candidate
+  processingStatus?: ProcessingStatus; // detailed lifecycle vs the coarse `status`
+  autoBookedByRuleId?: string; // which rule auto-booked this candidate (if any)
+  createdTxnId?: string; // the formal Txn id once booked; guarantees idempotent one-time booking
 }
 
 // What the recognizer produces before ids/timestamps are assigned.
@@ -291,4 +331,10 @@ export interface Snapshot {
   cardDueDay: number | null;
   version: string;
   exportedAt: string;
+  // --- auto-booking: learned rules, learning feedback, and settings ---
+  // Included in backup/restore and Supabase sync so learned rules survive
+  // device changes. All optional for backward compatibility with old snapshots.
+  automationRules?: AutomationRule[];
+  automationFeedback?: ConfirmationFeedback[];
+  automationSettings?: AutoBookSettings;
 }
