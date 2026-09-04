@@ -79,3 +79,23 @@ export function txnIsCard(t: Txn): boolean {
 export function txnIsPosted(t: Txn): boolean {
   return t.isPosted ?? true;
 }
+
+// For statistical aggregation (charts / stats / budget), a cross-currency CARD
+// transaction is attributed to its settlement (card-base) currency — NOT the
+// merchant's original currency.
+//
+//   e.g. 人民币信用卡 (settleCurrency=CNY) 在马来西亚商户消费 (origCurrency=MYR)
+//        -> 统计口径按 ¥(CNY) 计，不计入 RM(MYR)。
+//
+// Same-currency cards and every non-card transaction keep their original
+// currency, so nothing else changes.
+export function txnStatCurrency(t: Txn): Currency {
+  const orig = txnOrigCurrency(t);
+  const settle = txnSettleCurrency(t);
+  return txnIsCard(t) && settle !== orig ? settle : orig;
+}
+export function txnStatMinor(t: Txn): number {
+  const orig = txnOrigCurrency(t);
+  const settle = txnSettleCurrency(t);
+  return txnIsCard(t) && settle !== orig ? txnSettleMinor(t) : txnOrigMinor(t);
+}

@@ -16,8 +16,9 @@ import type { Txn, Account, FxSetting, Currency, Budget } from '../types';
 import {
   convertMinor,
   txnOrigMinor,
-  txnOrigCurrency,
   txnSettleMinor,
+  txnStatCurrency,
+  txnStatMinor,
   txnCountInStats,
   txnIsPosted,
 } from '../money';
@@ -43,25 +44,31 @@ export function financeStats(txns: Txn[], ym?: string): FinanceStats {
   for (const t of txns) {
     if (!txnCountInStats(t)) continue;
     if (ym && !t.date.startsWith(ym)) continue;
-    const c = txnOrigCurrency(t);
-    const amt = txnOrigMinor(t);
-    const bucket = (t.budgetCurrency ?? c) as 'CNY' | 'MYR';
+    // 统计口径：跨币种信用卡按卡本币（settleCurrency）计，而非商户原币。
+    // 例：人民币信用卡（settle=CNY）在马来西亚消费（orig=MYR）→ 只在 ¥ 桶，
+    //     不计入 RM 桶（与用户要求「RMB 信用卡付款记在人民币内、不记马币」一致）。
+    const statCur = txnStatCurrency(t);
+    const statAmt = txnStatMinor(t);
+    const bucket = (t.budgetCurrency ?? statCur) as 'CNY' | 'MYR';
     // Income / expense stats — skip wealth / transfer rows (affectsIncomeExpense=false).
-    if (t.affectsIncomeExpense !== false) {
-      if (t.type === 'income') r.incomeExpense[c].income += amt;
-      else if (t.type === 'expense') r.incomeExpense[c].expense += amt;
-      else if (t.type === 'refund') r.incomeExpense[c].expense -= amt; // 冲减原支出
+    const addStat = (cur: 'CNY' | 'MYR', amount: number) => {
+      if (t.affectsIncomeExpense === false) return;
+      if (t.type === 'income') r.incomeExpense[cur].income += amount;
+      else if (t.type === 'expense') r.incomeExpense[cur].expense += amount;
+      else if (t.type === 'refund') r.incomeExpense[cur].expense -= amount; // 冲减原支出
       // Fixed / recurring breakdown (for statistics) — only entries flagged isRecurring.
       if (t.isRecurring === true) {
-        if (t.type === 'income') r.recurringIncomeExpense[c].income += amt;
-        else if (t.type === 'expense') r.recurringIncomeExpense[c].expense += amt;
-        else if (t.type === 'refund') r.recurringIncomeExpense[c].expense -= amt;
+        if (t.type === 'income') r.recurringIncomeExpense[cur].income += amount;
+        else if (t.type === 'expense') r.recurringIncomeExpense[cur].expense += amount;
+        else if (t.type === 'refund') r.recurringIncomeExpense[cur].expense -= amount;
       }
-    }
+    };
+    addStat(statCur, statAmt);
     // Budget spend — only rows that actually deduct a budget (expense/refund).
+    // 预算按统计口径的卡本币扣减（RMB 信用卡消费归属 ¥ 预算，而非 RM 预算）。
     if (t.affectsBudget !== false && (t.type === 'expense' || t.type === 'refund')) {
-      if (t.type === 'expense') r.budgetSpent[bucket] += amt;
-      else r.budgetSpent[bucket] -= amt; // refund returns budget
+      if (t.type === 'expense') r.budgetSpent[bucket] += statAmt;
+      else r.budgetSpent[bucket] -= statAmt; // refund returns budget
     }
   }
   return r;

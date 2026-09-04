@@ -14,7 +14,11 @@
 
 import type { Txn, Currency } from '../types';
 import { ymStr } from '../datetime';
-import { txnOrigMinor, txnOrigCurrency, txnCountInStats } from '../money';
+import {
+  txnStatCurrency,
+  txnStatMinor,
+  txnCountInStats,
+} from '../money';
 
 // --------------------------------------------------------------------- shapes
 export interface MonthPoint {
@@ -38,20 +42,23 @@ export interface CatShare {
 }
 
 // ------------------------------------------------------------------- helpers
+// 统计口径：跨币种信用卡按卡本币（settleCurrency）计，而非商户原币。
+// 因此「人民币信用卡（settleCurrency=CNY）在马来西亚消费（origCurrency=MYR）」
+// 只在 ¥ 视图出现，不会计入 RM 视图（不双计、不在原币重复记录）。
 function statIncome(tx: Txn, cur: Currency): number {
   if (!txnCountInStats(tx)) return 0;
   if (tx.affectsIncomeExpense === false) return 0;
   if (tx.type !== 'income') return 0;
-  if (txnOrigCurrency(tx) !== cur) return 0;
-  return txnOrigMinor(tx);
+  if (txnStatCurrency(tx) !== cur) return 0;
+  return txnStatMinor(tx);
 }
 function statExpense(tx: Txn, cur: Currency): number {
   if (!txnCountInStats(tx)) return 0;
   if (tx.affectsIncomeExpense === false) return 0;
   if (tx.type !== 'expense' && tx.type !== 'refund') return 0;
-  if (txnOrigCurrency(tx) !== cur) return 0;
-  const amt = txnOrigMinor(tx);
-  return tx.type === 'refund' ? -amt : amt; // refund reduces expense
+  if (txnStatCurrency(tx) !== cur) return 0;
+  const amt = txnStatMinor(tx);
+  return tx.type === 'refund' ? -amt : amt;
 }
 
 /** Pick the currency that has more spend, so the chart opens on the meaningful data. */
